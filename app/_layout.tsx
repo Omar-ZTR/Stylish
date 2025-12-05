@@ -1,24 +1,24 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { useFonts } from "expo-font";
+import { SplashScreen, Stack } from "expo-router";
+import { useEffect } from "react";
+import "./global.css";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+const [fontLoaded, error] = useFonts ({
+   "PlayfairBI": require("../assets/fonts/PlayfairDisplay-BlackItalic.ttf"),
+   "PlayfairB": require("../assets/fonts/PlayfairDisplay-Bold.ttf"),
+   "PlayfairR": require("../assets/fonts/PlayfairDisplay-Regular.ttf"),
+   "PlayfairI": require("../assets/fonts/PlayfairDisplay-Italic.ttf"),
+   "PlayfairEB": require("../assets/fonts/PlayfairDisplay-ExtraBold.ttf"),
+   "PlayfairBIT": require("../assets/fonts/PlayfairDisplay-BoldItalic.ttf"),
+  });
+  useEffect(() =>{
+    if(error) throw error
+    if(fontLoaded) SplashScreen.hideAsync();
+  }, [fontLoaded,error]);
+
+  return <Stack  screenOptions={{headerShown: false}}/>;
 }
+
+
