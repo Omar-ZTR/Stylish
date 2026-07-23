@@ -10,12 +10,14 @@ module.exports = {
         dark: '#040404',
         gold: '#FFD60A',
         white: '#FFFFFF',
-        background: '#181717ff',
+        // Somber background: deep, slightly cool charcoal
+        background: '#0F1416',
         gray: {
-          light: '#E5E5E5',
-          DEFAULT: '#A1A1A1',
-          dark: '#333333',
+          light: '#D9D9D9',
+          DEFAULT: '#989898',
+          dark: '#2B2F33',
         },
+        muted: '#111518',
       },
        fontFamily: {
       PlayfairB: ["PlayfairB"],
