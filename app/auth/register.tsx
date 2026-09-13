@@ -1,33 +1,41 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import {
-    ArrowLeft,
-    ArrowRight,
-    CheckCircle,
-    Eye,
-    EyeOff,
-    Lock,
-    Mail,
-    Phone,
-    User,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Phone,
+  User,
 } from "lucide-react-native";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/src/auth/AuthContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
+  const isDark = useColorScheme() === "dark";
+  const backgroundColors: readonly [string, string, string] = isDark ? ["#0f172a", "#1e293b", "#1a1a2e"] : ["#f8fafc", "#e2e8f0", "#dbeafe"];
+  const textPrimary = isDark ? "#FFFFFF" : "#0F172A";
+  const textSecondary = isDark ? "#9CA3AF" : "#475569";
+  const inputBorder = isDark ? "rgba(245, 158, 11, 0.35)" : "rgba(245, 158, 11, 0.7)";
+  const inputBackground = isDark ? "rgba(17, 24, 39, 0.65)" : "rgba(255, 255, 255, 0.8)";
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -72,8 +80,7 @@ export default function RegisterScreen() {
     } else if (password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      newErrors.password =
-        "Password must contain uppercase, lowercase, and numbers";
+      newErrors.password = "Password must contain uppercase, lowercase, and numbers";
     }
 
     if (password !== confirmPassword) {
@@ -93,10 +100,15 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      await register({ fullName, email, phone, password });
-      // Navigation happens automatically through AuthContext state change
-    } catch {
-      setErrors({ email: "Email already registered" });
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        password,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Registration failed";
+      setErrors({ email: message });
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +126,7 @@ export default function RegisterScreen() {
     const labels = ["Weak", "Fair", "Good", "Strong", "Very Strong"];
     const colors = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e"];
     return {
-      strength: strength,
+      strength,
       label: labels[Math.min(strength, 4)],
       color: colors[Math.min(strength, 4)],
     };
@@ -123,372 +135,174 @@ export default function RegisterScreen() {
   const passwordStrength = getPasswordStrength();
 
   return (
-    <LinearGradient
-      colors={["#0f172a", "#1e293b", "#1a1a2e"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
-      <SafeAreaView className="flex-1">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
-        >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-            className="px-6"
-          >
-            {/* Header with Back Button */}
-            <View className="flex-row items-center justify-between mt-6 mb-10">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                disabled={isLoading}
-                className="flex-row items-center gap-2"
-              >
+    <LinearGradient colors={backgroundColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboard}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={() => router.back()} disabled={isLoading} style={styles.backButton}>
                 <ArrowLeft size={24} color="#f59e0b" strokeWidth={2} />
               </TouchableOpacity>
-              <View className="flex-1 h-1 w-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full mx-4" />
+              <View style={styles.headerAccent} />
             </View>
 
-            {/* Title */}
-            <View className="mb-8">
-              <Text
-                style={{ fontFamily: "PlayfairB" }}
-                className="text-4xl font-bold text-white mb-2"
-              >
-                Create Account
-              </Text>
-              <Text className="text-gray-400 text-base">
-                Join our community of style enthusiasts
-              </Text>
+            <View style={styles.titleWrap}>
+              <Text style={[styles.title, { color: textPrimary, fontFamily: "PlayfairB" }]}>Create Account</Text>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>Join our community of style enthusiasts</Text>
             </View>
 
-            {/* Form Container */}
-            <View className="mb-4">
-              {/* Full Name Input */}
-              <View className="mb-6">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  FULL NAME
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.fullName
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <User
-                    size={20}
-                    color={errors.fullName ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+            <View style={styles.formWrap}>
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>FULL NAME</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.fullName ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <User size={20} color={errors.fullName ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="John Doe"
                     placeholderTextColor="#6b7280"
                     value={fullName}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setFullName(text);
-                      if (errors.fullName)
-                        setErrors({ ...errors, fullName: undefined });
+                      if (errors.fullName) setErrors({ ...errors, fullName: undefined });
                     }}
                     editable={!isLoading}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     autoCapitalize="words"
                   />
                 </View>
-                {errors.fullName && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.fullName}
-                  </Text>
-                )}
+                {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
               </View>
 
-              {/* Email Input */}
-              <View className="mb-6">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  EMAIL ADDRESS
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.email
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Mail
-                    size={20}
-                    color={errors.email ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>EMAIL ADDRESS</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.email ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Mail size={20} color={errors.email ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="your@email.com"
                     placeholderTextColor="#6b7280"
                     value={email}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setEmail(text);
-                      if (errors.email)
-                        setErrors({ ...errors, email: undefined });
+                      if (errors.email) setErrors({ ...errors, email: undefined });
                     }}
                     editable={!isLoading}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
-                {errors.email && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.email}
-                  </Text>
-                )}
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
-              {/* Phone Input */}
-              <View className="mb-6">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  PHONE NUMBER
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.phone
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Phone
-                    size={20}
-                    color={errors.phone ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>PHONE NUMBER</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.phone ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Phone size={20} color={errors.phone ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="+1 (555) 000-0000"
                     placeholderTextColor="#6b7280"
                     value={phone}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setPhone(text);
-                      if (errors.phone)
-                        setErrors({ ...errors, phone: undefined });
+                      if (errors.phone) setErrors({ ...errors, phone: undefined });
                     }}
                     editable={!isLoading}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     keyboardType="phone-pad"
                   />
                 </View>
-                {errors.phone && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.phone}
-                  </Text>
-                )}
+                {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
               </View>
 
-              {/* Password Input */}
-              <View className="mb-6">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  PASSWORD
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.password
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Lock
-                    size={20}
-                    color={errors.password ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>PASSWORD</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.password ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Lock size={20} color={errors.password ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="••••••••"
                     placeholderTextColor="#6b7280"
                     value={password}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setPassword(text);
-                      if (errors.password)
-                        setErrors({ ...errors, password: undefined });
+                      if (errors.password) setErrors({ ...errors, password: undefined });
                     }}
                     editable={!isLoading}
                     secureTextEntry={!showPassword}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     autoCapitalize="none"
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <Eye size={20} color="#f59e0b" strokeWidth={1.5} />
-                    ) : (
-                      <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />
-                    )}
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading} style={styles.iconButton}>
+                    {showPassword ? <Eye size={20} color="#f59e0b" strokeWidth={1.5} /> : <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />}
                   </TouchableOpacity>
                 </View>
-                {errors.password && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.password}
-                  </Text>
-                )}
-                {password && (
-                  <View className="mt-3">
-                    <View className="flex-row items-center gap-2">
-                      <View className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                        <View
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${(passwordStrength.strength / 5) * 100}%`,
-                            backgroundColor: passwordStrength.color,
-                          }}
-                        />
-                      </View>
-                      <Text
-                        style={{ color: passwordStrength.color }}
-                        className="text-xs font-bold"
-                      >
-                        {passwordStrength.label}
-                      </Text>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+                {password ? (
+                  <View style={styles.strengthWrap}>
+                    <View style={styles.strengthTrack}>
+                      <View style={[styles.strengthFill, { width: `${(passwordStrength.strength / 5) * 100}%`, backgroundColor: passwordStrength.color }]} />
                     </View>
+                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>{passwordStrength.label}</Text>
                   </View>
-                )}
+                ) : null}
               </View>
 
-              {/* Confirm Password Input */}
-              <View className="mb-6">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  CONFIRM PASSWORD
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.confirmPassword
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Lock
-                    size={20}
-                    color={errors.confirmPassword ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>CONFIRM PASSWORD</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.confirmPassword ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Lock size={20} color={errors.confirmPassword ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="••••••••"
                     placeholderTextColor="#6b7280"
                     value={confirmPassword}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setConfirmPassword(text);
-                      if (errors.confirmPassword)
-                        setErrors({
-                          ...errors,
-                          confirmPassword: undefined,
-                        });
+                      if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
                     }}
                     editable={!isLoading}
                     secureTextEntry={!showConfirmPassword}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     autoCapitalize="none"
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    disabled={isLoading}
-                  >
-                    {showConfirmPassword ? (
-                      <Eye size={20} color="#f59e0b" strokeWidth={1.5} />
-                    ) : (
-                      <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />
-                    )}
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isLoading} style={styles.iconButton}>
+                    {showConfirmPassword ? <Eye size={20} color="#f59e0b" strokeWidth={1.5} /> : <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />}
                   </TouchableOpacity>
                 </View>
-                {password && confirmPassword && !errors.confirmPassword && (
-                  <View className="flex-row items-center gap-2 mt-2">
+                {password && confirmPassword && !errors.confirmPassword ? (
+                  <View style={styles.matchRow}>
                     <CheckCircle size={16} color="#22c55e" />
-                    <Text className="text-green-500 text-xs font-bold">
-                      Passwords match
-                    </Text>
+                    <Text style={styles.successText}>Passwords match</Text>
                   </View>
-                )}
-                {errors.confirmPassword && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.confirmPassword}
-                  </Text>
-                )}
+                ) : null}
+                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
               </View>
 
-              {/* Terms and Conditions */}
-              <TouchableOpacity
-                onPress={() => setAgreeTerms(!agreeTerms)}
-                disabled={isLoading}
-                className="flex-row items-start gap-3 mb-7"
-              >
-                <View
-                  className={`w-6 h-6 rounded-lg border-2 items-center justify-center mt-0.5 ${
-                    agreeTerms
-                      ? "bg-amber-500 border-amber-500"
-                      : "border-gray-700"
-                  }`}
-                >
-                  {agreeTerms && (
-                    <CheckCircle size={20} color="white" strokeWidth={3} />
-                  )}
+              <TouchableOpacity onPress={() => setAgreeTerms(!agreeTerms)} disabled={isLoading} style={styles.termsRow}>
+                <View style={[styles.checkbox, { backgroundColor: agreeTerms ? "#f59e0b" : "transparent", borderColor: agreeTerms ? "#f59e0b" : "#6b7280" }]}>
+                  {agreeTerms ? <CheckCircle size={18} color="white" strokeWidth={3} /> : null}
                 </View>
-                <View className="flex-1 mt-1">
-                  <Text className="text-gray-300 text-sm leading-relaxed">
-                    I agree to the{" "}
-                    <Text className="text-amber-400 font-bold">
-                      Terms of Service
-                    </Text>{" "}
-                    and{" "}
-                    <Text className="text-amber-400 font-bold">
-                      Privacy Policy
-                    </Text>
-                  </Text>
+                <View style={styles.termsTextWrap}>
+                  <Text style={[styles.termsText, { color: textSecondary }]}>I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text></Text>
                 </View>
               </TouchableOpacity>
-              {errors.terms && (
-                <Text className="text-red-500 text-xs font-semibold mb-6">
-                  {errors.terms}
-                </Text>
-              )}
+              {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
-              {/* Register Button */}
-              <TouchableOpacity
-                onPress={handleRegister}
-                disabled={isLoading}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={["#f59e0b", "#d97706"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  className="rounded-2xl py-5 flex-row items-center justify-center gap-3 shadow-lg"
-                >
+              <TouchableOpacity onPress={handleRegister} disabled={isLoading} activeOpacity={0.85}>
+                <LinearGradient colors={["#f59e0b", "#d97706"] as const} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primaryButton}>
                   {isLoading ? (
                     <ActivityIndicator color="white" size="small" />
                   ) : (
                     <>
-                      <Text className="text-white text-lg font-bold tracking-wide">
-                        Create Account
-                      </Text>
-                      <ArrowRight
-                        size={20}
-                        color="white"
-                        strokeWidth={2.5}
-                      />
+                      <Text style={styles.primaryButtonText}>Create Account</Text>
+                      <ArrowRight size={20} color="white" strokeWidth={2.5} />
                     </>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
-            {/* Login Link */}
-            <View className="flex-row items-center justify-center py-6">
-              <Text className="text-gray-400 text-sm">
-                Already have an account?{" "}
-              </Text>
-              <TouchableOpacity
-                onPress={() => router.push("/auth/login")}
-                disabled={isLoading}
-              >
-                <Text className="text-amber-400 font-bold text-sm ml-1">
-                  Sign In
-                </Text>
+            <View style={styles.footerRow}>
+              <Text style={[styles.footerText, { color: textSecondary }]}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push("/auth/login")} disabled={isLoading}>
+                <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -497,3 +311,40 @@ export default function RegisterScreen() {
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, marginBottom: 32 },
+  backButton: { padding: 8 },
+  headerAccent: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "#f59e0b", marginLeft: 16 },
+  titleWrap: { marginBottom: 28 },
+  title: { fontSize: 40, fontWeight: "700", marginBottom: 8 },
+  subtitle: { fontSize: 16, lineHeight: 24 },
+  formWrap: { marginBottom: 16 },
+  fieldWrap: { marginBottom: 16 },
+  label: { fontSize: 12, fontWeight: "700", marginBottom: 10, letterSpacing: 0.8 },
+  inputContainer: { flexDirection: "row", alignItems: "center", borderWidth: 2, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14 },
+  input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: "500" },
+  errorText: { color: "#ef4444", fontSize: 12, fontWeight: "600", marginTop: 8 },
+  strengthWrap: { flexDirection: "row", alignItems: "center", marginTop: 12 },
+  strengthTrack: { flex: 1, height: 6, borderRadius: 999, backgroundColor: "#374151", overflow: "hidden" },
+  strengthFill: { height: "100%", borderRadius: 999 },
+  strengthLabel: { marginLeft: 10, fontSize: 12, fontWeight: "700" },
+  matchRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+  successText: { color: "#22c55e", fontSize: 12, fontWeight: "700", marginLeft: 8 },
+  termsRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 20 },
+  checkbox: { width: 22, height: 22, borderWidth: 2, borderRadius: 8, alignItems: "center", justifyContent: "center", marginTop: 2, marginRight: 12 },
+  termsTextWrap: { flex: 1 },
+  termsText: { fontSize: 14, lineHeight: 20 },
+  termsLink: { color: "#fbbf24", fontWeight: "700" },
+  primaryButton: { borderRadius: 18, paddingVertical: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", shadowColor: "#f59e0b", shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  primaryButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", letterSpacing: 0.5 },
+  footerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingBottom: 8 },
+  footerText: { fontSize: 14 },
+  footerLink: { color: "#fbbf24", fontSize: 14, fontWeight: "700" },
+  iconButton: { paddingHorizontal: 4 },
+});

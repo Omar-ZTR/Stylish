@@ -1,105 +1,88 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ArrowRight, Clock, Users, Zap } from "lucide-react-native";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AuthWelcomeScreen() {
   const router = useRouter();
+  const isDark = useColorScheme() === "dark";
+  const backgroundColors: readonly [string, string, string] = isDark ? ["#0f172a", "#1e293b", "#1a1a2e"] : ["#f8fafc", "#e2e8f0", "#dbeafe"];
+  const textPrimary = isDark ? "#FFFFFF" : "#0F172A";
+  const textSecondary = isDark ? "#D1D5DB" : "#475569";
+  const cardBackground = isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.8)";
+  const cardBorder = isDark ? "rgba(251,191,36,0.2)" : "rgba(251,191,36,0.5)";
 
   return (
     <LinearGradient
-      colors={["#0f172a", "#1e293b", "#1a1a2e"]}
+      colors={backgroundColors}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="flex-1"
+      style={styles.gradient}
     >
-      <SafeAreaView className="flex-1">
+      <SafeAreaView style={styles.safeArea}>
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          className="px-6 py-8"
+          style={styles.scroll}
         >
-          {/* Top Accent */}
-          <View className="h-1 w-24 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full mb-8" />
+          <View style={styles.topAccent} />
 
-          {/* Hero Section */}
-          <View className="flex-1 justify-center items-center gap-6 mb-12">
-            {/* Logo Circle */}
-            <View className="relative">
+          <View style={styles.heroSection}>
+            <View style={styles.logoWrap}>
               <LinearGradient
-                colors={["#f59e0b", "#d97706", "#b45309"]}
+                colors={["#f59e0b", "#d97706", "#b45309"] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                className="w-28 h-28 rounded-full items-center justify-center shadow-2xl"
+                style={styles.logoGradient}
               >
-                <Text
-                  style={{ fontFamily: "PlayfairB", fontSize: 64 }}
-                  className="text-white font-bold"
-                >
-                  ✂
-                </Text>
+                <Text style={[styles.logoText, { fontFamily: "PlayfairB" }]}>✂</Text>
               </LinearGradient>
-              {/* Glow effect */}
-              <View className="absolute inset-0 rounded-full bg-amber-500/20 blur-3xl" />
+              <View style={styles.glow} />
             </View>
 
-            {/* Title */}
-            <View className="items-center gap-3">
-              <Text
-                style={{ fontFamily: "PlayfairB" }}
-                className="text-6xl font-bold text-white text-center leading-tight"
-              >
+            <View style={styles.titleWrap}>
+              <Text style={[styles.title, { fontFamily: "PlayfairB", color: textPrimary }]}>
                 Stylish
               </Text>
-              <View className="h-1 w-16 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full" />
-              <Text className="text-gray-300 text-center text-base leading-relaxed font-light tracking-wide">
+              <View style={styles.titleDivider} />
+              <Text style={[styles.subtitle, { color: textSecondary }]}>
                 Premium Barber Experience
               </Text>
             </View>
 
-            {/* Features Grid */}
-            <View className="gap-4 w-full mt-10">
-              {/* Feature 1 */}
-              <View className="flex-row gap-4 items-start bg-WHITE/5 backdrop-blur-sm rounded-2xl p-4 border border-amber-500/20">
-                <View className="mt-1">
+            <View style={styles.featuresWrap}>
+              <View style={[styles.featureCard, { backgroundColor: cardBackground, borderColor: cardBorder }]}>
+                <View style={styles.featureIconWrap}>
                   <Zap size={24} color="#f59e0b" strokeWidth={1.5} />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-base mb-1">
-                    Expert Barbers
-                  </Text>
-                  <Text className="text-gray-400 text-sm leading-relaxed">
+                <View style={styles.featureTextWrap}>
+                  <Text style={[styles.featureTitle, { color: textPrimary }]}>Expert Barbers</Text>
+                  <Text style={[styles.featureText, { color: textSecondary }]}>
                     Top-rated professionals at your fingertips
                   </Text>
                 </View>
               </View>
 
-              {/* Feature 2 */}
-              <View className="flex-row gap-4 items-start bg-WHITE/5 backdrop-blur-sm rounded-2xl p-4 border border-amber-500/20">
-                <View className="mt-1">
+              <View style={[styles.featureCard, { backgroundColor: cardBackground, borderColor: cardBorder }]}>
+                <View style={styles.featureIconWrap}>
                   <Clock size={24} color="#f59e0b" strokeWidth={1.5} />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-base mb-1">
-                    Instant Booking
-                  </Text>
-                  <Text className="text-gray-400 text-sm leading-relaxed">
+                <View style={styles.featureTextWrap}>
+                  <Text style={[styles.featureTitle, { color: textPrimary }]}>Instant Booking</Text>
+                  <Text style={[styles.featureText, { color: textSecondary }]}>
                     Schedule appointments in seconds
                   </Text>
                 </View>
               </View>
 
-              {/* Feature 3 */}
-              <View className="flex-row gap-4 items-start bg-WHITE/5 backdrop-blur-sm rounded-2xl p-4 border border-amber-500/20">
-                <View className="mt-1">
+              <View style={[styles.featureCard, { backgroundColor: cardBackground, borderColor: cardBorder }]}>
+                <View style={styles.featureIconWrap}>
                   <Users size={24} color="#f59e0b" strokeWidth={1.5} />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-base mb-1">
-                    Trusted Reviews
-                  </Text>
-                  <Text className="text-gray-400 text-sm leading-relaxed">
+                <View style={styles.featureTextWrap}>
+                  <Text style={[styles.featureTitle, { color: textPrimary }]}>Trusted Reviews</Text>
+                  <Text style={[styles.featureText, { color: textSecondary }]}>
                     Real feedback from verified customers
                   </Text>
                 </View>
@@ -107,37 +90,30 @@ export default function AuthWelcomeScreen() {
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <View className="gap-3 pb-6">
-            {/* Primary Button */}
+          <View style={styles.actionWrap}>
             <TouchableOpacity
               onPress={() => router.push("/auth/register")}
               activeOpacity={0.85}
-              className="shadow-lg"
+              style={styles.primaryButtonWrap}
             >
               <LinearGradient
-                colors={["#f59e0b", "#d97706"]}
+                colors={["#f59e0b", "#d97706"] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                className="rounded-2xl py-5 flex-row items-center justify-center gap-3"
+                style={styles.primaryButton}
               >
-                <Text className="text-white text-lg font-bold tracking-wide">
-                  Get Started
-                </Text>
+                <Text style={styles.primaryButtonText}>Get Started</Text>
                 <ArrowRight size={20} color="white" strokeWidth={2.5} />
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Secondary Button */}
             <TouchableOpacity
               onPress={() => router.push("/auth/login")}
               activeOpacity={0.85}
-              className="border-2 border-amber-500/50 rounded-2xl py-5 items-center backdrop-blur-sm"
+              style={styles.secondaryButton}
             >
-              <Text className="text-white text-lg font-bold tracking-wide">
-                Already Have Account?
-              </Text>
-              <Text className="text-amber-400 text-sm mt-1">Sign In</Text>
+              <Text style={styles.secondaryButtonText}>Already Have Account?</Text>
+              <Text style={styles.secondaryLinkText}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -145,3 +121,161 @@ export default function AuthWelcomeScreen() {
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 32,
+  },
+  topAccent: {
+    width: 96,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "#f59e0b",
+    marginBottom: 32,
+  },
+  heroSection: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 48,
+  },
+  logoWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  logoGradient: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#f59e0b",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  logoText: {
+    fontSize: 64,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  glow: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(245,158,11,0.18)",
+    zIndex: -1,
+  },
+  titleWrap: {
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 56,
+    lineHeight: 60,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  titleDivider: {
+    width: 64,
+    height: 4,
+    borderRadius: 999,
+    marginTop: 12,
+    marginBottom: 12,
+    backgroundColor: "#f59e0b",
+  },
+  subtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: "center",
+    letterSpacing: 0.5,
+  },
+  featuresWrap: {
+    width: "100%",
+    marginTop: 40,
+    gap: 16,
+  },
+  featureCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
+  },
+  featureIconWrap: {
+    marginTop: 2,
+    marginRight: 12,
+  },
+  featureTextWrap: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  featureText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  actionWrap: {
+    gap: 12,
+    paddingBottom: 8,
+  },
+  primaryButtonWrap: {
+    shadowColor: "#f59e0b",
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  primaryButton: {
+    borderRadius: 18,
+    paddingVertical: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  secondaryButton: {
+    borderWidth: 2,
+    borderColor: "rgba(245,158,11,0.5)",
+    borderRadius: 18,
+    paddingVertical: 18,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.02)",
+  },
+  secondaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  secondaryLinkText: {
+    color: "#fbbf24",
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+});

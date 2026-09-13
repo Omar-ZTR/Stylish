@@ -1,39 +1,54 @@
 import { Ionicons } from '@expo/vector-icons'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-
-const SAMPLE = [
-  { id: 'n1', title: 'Appointment Confirmed', body: 'Your cut with John is confirmed for tomorrow.', time: '2h', read: false },
-  { id: 'n2', title: 'New Offer', body: 'Get 20% off on deluxe shaves this week.', time: '1d', read: false },
-  { id: 'n3', title: 'Reminder', body: 'Don\'t forget your appointment next Monday.', time: '3d', read: true },
-]
+import { api, type Notification as ApiNotification } from '@/src/lib/api'
 
 const Notifications = () => {
-  const [items, setItems] = useState(SAMPLE)
+  const [items, setItems] = useState<ApiNotification[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
-  const onRefresh = useCallback(() => {
+  const loadNotifications = useCallback(async () => {
     setRefreshing(true)
-    setTimeout(() => setRefreshing(false), 700)
+    try { setItems((await api.getNotifications()).notifications) } finally { setRefreshing(false) }
   }, [])
 
-  const toggleRead = (id: string) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, read: !i.read } : i))
+  useEffect(() => {
+    let active = true
+
+    const fetchNotifications = async () => {
+      try {
+        const result = await api.getNotifications()
+        if (active) setItems(result.notifications)
+      } catch {
+        if (active) setItems([])
+      }
+    }
+
+    void fetchNotifications()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const onRefresh = useCallback(() => { void loadNotifications() }, [loadNotifications])
+
+  const toggleRead = async (id: string) => {
+    await api.markNotificationRead(id)
+    setItems(prev => prev.map(item => item.id === id ? { ...item, isRead: true } : item))
   }
 
-  const clearAll = () => setItems([])
-
-  const renderItem = ({ item }: { item: typeof SAMPLE[0] }) => (
-    <TouchableOpacity style={[styles.row, item.read ? null : styles.unread]} onPress={() => toggleRead(item.id)}>
+  const renderItem = ({ item }: { item: ApiNotification }) => (
+    <TouchableOpacity style={[styles.row, item.isRead ? null : styles.unread]} onPress={() => toggleRead(item.id)}>
       <View style={styles.left}>
-        {!item.read && <View style={styles.dot} />}
+        {!item.isRead && <View style={styles.dot} />}
       </View>
       <View style={styles.mid}>
-        <Text style={[styles.title, item.read ? styles.readText : null]} numberOfLines={1}>{item.title}</Text>
+        <Text style={[styles.title, item.isRead ? styles.readText : null]} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
       </View>
       <View style={styles.right}>
-        <Text style={styles.time}>{item.time}</Text>
+        <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
       </View>
     </TouchableOpacity>
   )
@@ -52,9 +67,7 @@ const Notifications = () => {
     <View style={{ flex: 1 }}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={clearAll} style={styles.clearBtn} accessibilityLabel="Clear all notifications">
-          <Text style={styles.clearText}>Clear all</Text>
-        </TouchableOpacity>
+        <Text style={styles.clearText}>{items.filter(item => !item.isRead).length} unread</Text>
       </View>
       <FlatList
         data={items}

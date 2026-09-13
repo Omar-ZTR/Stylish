@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
     FlatList,
     Image,
@@ -10,35 +10,60 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native'
-const SAMPLE = [
-  { id: '1', title: 'Starter Pack', subtitle: '3 services included', price: '$45', image: 'https://placekitten.com/200/200', type: 'pack' },
-  { id: '2', title: 'John — Senior Barber', subtitle: 'Barber • 10 yrs experience', price: '', image: 'https://placekitten.com/201/200', type: 'barber' },
-  { id: '3', title: 'Deluxe Shave Pack', subtitle: '2 services + product', price: '$30', image: 'https://placekitten.com/200/201', type: 'pack' },
-]
+import { api, type Barber } from '@/src/lib/api'
 
 const Favorites = () => {
-  const [items, setItems] = useState(SAMPLE)
+  const [items, setItems] = useState<Barber[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
 
-  const onRefresh = useCallback(() => {
+  const loadFavorites = useCallback(async () => {
     setRefreshing(true)
-    setTimeout(() => setRefreshing(false), 700)
+    try {
+      const result = await api.getFavorites()
+      setItems(result.barbers)
+    } finally {
+      setRefreshing(false)
+    }
   }, [])
 
-  const removeItem = (id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id))
+  useEffect(() => {
+    let active = true
+
+    const fetchFavorites = async () => {
+      try {
+        const result = await api.getFavorites()
+        if (active) setItems(result.barbers)
+      } catch {
+        if (active) setItems([])
+      }
+    }
+
+    void fetchFavorites()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const onRefresh = useCallback(() => {
+    void loadFavorites()
+  }, [loadFavorites])
+
+  const removeItem = async (id: string) => {
+    await api.toggleFavorite(id)
+    setItems(prev => prev.filter(item => item.id !== id))
   }
 
-  const renderItem = ({ item }: { item: typeof SAMPLE[0] }) => (
+  const renderItem = ({ item }: { item: Barber }) => (
     <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
+      <Image source={{ uri: item.logoUrl }} style={styles.image} />
       <View style={styles.content}>
-        <Text numberOfLines={1} style={styles.title}>{item.title}</Text>
-        <Text numberOfLines={1} style={styles.subtitle}>{item.subtitle}</Text>
-        {item.price ? <Text style={styles.price}>{item.price}</Text> : null}
-        <View style={[styles.typePill, item.type === 'pack' ? styles.packPill : styles.barberPill]}>
-          <Text style={styles.typeText}>{item.type === 'pack' ? 'Pack' : 'Barber'}</Text>
+        <Text numberOfLines={1} style={styles.title}>{item.name}</Text>
+        <Text numberOfLines={1} style={styles.subtitle}>{item.location}</Text>
+        <Text style={styles.price}>{item.rating.toFixed(1)} rating</Text>
+        <View style={[styles.typePill, styles.barberPill]}>
+          <Text style={styles.typeText}>Barber</Text>
         </View>
       </View>
       <TouchableOpacity style={styles.heart} onPress={() => removeItem(item.id)} accessibilityLabel="Remove saved">

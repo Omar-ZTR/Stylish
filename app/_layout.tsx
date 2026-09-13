@@ -2,14 +2,19 @@ import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { Text, View, useColorScheme } from "react-native";
+import { AuthProvider, useAuth } from "@/src/auth/AuthContext";
 import "./global.css";
 
 function RootLayoutContent() {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   const [isSplashReady, setIsSplashReady] = useState(false);
+  const splashColors: readonly [string, string] = isDark ? ["#1a1a1a", "#2d2d2d"] : ["#f8fafc", "#e2e8f0"];
+  const logoColors: readonly [string, string] = isDark ? ["#d97706", "#b45309"] : ["#f59e0b", "#f97316"];
+  const titleColor = isDark ? "text-white" : "text-slate-900";
 
   const [fontLoaded, error] = useFonts({
     PlayfairBI: require("../assets/fonts/PlayfairDisplay-BlackItalic.ttf"),
@@ -46,10 +51,10 @@ function RootLayoutContent() {
   // Show splash screen while loading
   if (!isSplashReady || !fontLoaded) {
     return (
-      <LinearGradient colors={["#1a1a1a", "#2d2d2d"]} className="flex-1">
+      <LinearGradient colors={splashColors} className="flex-1">
         <View className="flex-1 justify-center items-center">
           <LinearGradient
-            colors={["#d97706", "#b45309"]}
+            colors={logoColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             className="w-32 h-32 rounded-full items-center justify-center"
@@ -63,7 +68,7 @@ function RootLayoutContent() {
           </LinearGradient>
           <Text
             style={{ fontFamily: "PlayfairB", marginTop: 20, fontSize: 24 }}
-            className="text-white font-bold"
+            className={`${titleColor} font-bold`}
           >
             Stylish
           </Text>
@@ -74,26 +79,26 @@ function RootLayoutContent() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="auth" options={{ animationEnabled: false }} />
-      <Stack.Screen name="(tabs)" options={{ animationEnabled: false }} />
+      <Stack.Screen name="auth" options={{ animation: "none" }} />
+      <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
       <Stack.Screen
         name="barber/[id]"
         options={{
-          animationEnabled: true,
+          animation: "default",
           presentation: "card",
         }}
       />
       <Stack.Screen
         name="book/[barberId]/[serviceId]"
         options={{
-          animationEnabled: true,
+          animation: "default",
           presentation: "card",
         }}
       />
       <Stack.Screen
         name="book/multi/[barberId]"
         options={{
-          animationEnabled: true,
+          animation: "default",
           presentation: "card",
         }}
       />

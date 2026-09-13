@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { barbers } from "../../data";
+import { api, type Barber } from "@/src/lib/api";
 import "../../global.css";
 
 export default function MultiBooking() {
@@ -11,7 +11,10 @@ export default function MultiBooking() {
   const servicesParam = (params.services as string | undefined) ?? "";
   const serviceIds = servicesParam.split(",").filter(Boolean);
 
-  const barber = useMemo(() => barbers.find((b) => b.id === barberId), [barberId]);
+  const [barber, setBarber] = useState<Barber | null>(null);
+  useEffect(() => {
+    if (barberId) api.getBarber(barberId).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
+  }, [barberId]);
   const selectedServices = useMemo(() => barber?.services.filter((s) => serviceIds.includes(s.id)) ?? [], [barber, serviceIds]);
 
   const [dateIndex, setDateIndex] = useState(0);
@@ -23,7 +26,7 @@ export default function MultiBooking() {
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(today.getDate() + i);
-      arr.push(d.toDateString());
+      arr.push(d.toISOString().slice(0, 10));
     }
     return arr;
   }, []);
@@ -38,11 +41,16 @@ export default function MultiBooking() {
     );
   }
 
-  function confirm() {
+  async function confirm() {
     if (!barber) return;
     const names = selectedServices.map((s) => s.name).join(", ");
-    Alert.alert("Booking confirmed", `You booked ${names} at ${barber.name} on ${dates[dateIndex]} at ${times[timeIndex]}`);
-    router.push("/");
+    try {
+      await api.createBooking({ barberId: barber.id, serviceIds, bookingDate: dates[dateIndex], startTime: times[timeIndex] });
+      Alert.alert("Booking confirmed", `You booked ${names} at ${barber.name}.`);
+      router.replace("/(tabs)/profile");
+    } catch (error) {
+      Alert.alert("Booking unavailable", error instanceof Error ? error.message : "Please try another time.");
+    }
   }
 
   return (
@@ -64,7 +72,7 @@ export default function MultiBooking() {
         <View className="flex-row gap-2 mb-4">
           {dates.map((d, i) => (
             <TouchableOpacity key={d} onPress={() => setDateIndex(i)} className={`px-3 py-2 rounded-md ${dateIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-              <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(d).toLocaleDateString()}</Text>
+              <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(`${d}T12:00:00`).toLocaleDateString()}</Text>
             </TouchableOpacity>
           ))}
         </View>

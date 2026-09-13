@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     FlatList,
     Image,
@@ -10,10 +10,12 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import { barbers, news, salesPacks, stories } from "../data";
+import { api, type Barber } from "@/src/lib/api";
+import { news, salesPacks, stories } from "@/src/data";
 import "../global.css";
 export default function Index() {
   const router = useRouter();
+  const [nearbyBarbers, setNearbyBarbers] = useState<Barber[]>([]);
   // const services = [
   //   {
   //     id: "1",
@@ -65,6 +67,10 @@ export default function Index() {
   //   },
   // ];
   const [viewingStory, setViewingStory] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getBarbers().then(({ barbers }) => setNearbyBarbers(barbers)).catch(() => setNearbyBarbers([]));
+  }, []);
 
   const currentStory = stories.find(s => s.id === viewingStory);
   const currentStoryIndex = stories.findIndex(s => s.id === viewingStory);
@@ -204,7 +210,7 @@ export default function Index() {
             </TouchableOpacity>
           </View>
           <FlatList
-            data={barbers}
+            data={nearbyBarbers}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
@@ -214,13 +220,13 @@ export default function Index() {
                 className="w-44 mr-3 bg-neutral-900 rounded-2xl border border-neutral-800 p-3"
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: item.logo }} className="w-full h-24 rounded-xl" />
+                <Image source={{ uri: item.logoUrl }} className="w-full h-24 rounded-xl" />
                 <Text className="text-white font-semibold mt-3" numberOfLines={1}>{item.name}</Text>
                 <Text className="text-neutral-400 text-xs mt-1" numberOfLines={1}>{item.location}</Text>
                 <View className="flex-row items-center mt-2">
                   <MaterialIcons name="star" size={15} color="#FFD60A" />
                   <Text className="text-[#FFD60A] text-xs ml-1">{item.rating.toFixed(1)}</Text>
-                  <Text className="text-neutral-500 text-xs ml-2">{item.distance}</Text>
+                  <Text className="text-neutral-500 text-xs ml-2">{item.distanceKm} km</Text>
                 </View>
               </TouchableOpacity>
             )}

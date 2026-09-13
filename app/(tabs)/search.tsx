@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -15,7 +15,8 @@ import {
   View,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
-import { barbers, salesPacks } from "../data";
+import { api, type Barber } from "@/src/lib/api";
+import { salesPacks } from "@/src/data";
 import "../global.css";
 
 export default function Search() {
@@ -26,6 +27,11 @@ export default function Search() {
   // handleScroll moved below so it can safely close dropdowns when scrolling
 
   const [query, setQuery] = useState("");
+  const [barbers, setBarbers] = useState<Barber[]>([]);
+
+  useEffect(() => {
+    api.getBarbers().then(({ barbers: results }) => setBarbers(results)).catch(() => setBarbers([]));
+  }, []);
   const filteredSales = salesPacks.filter((item) =>
     item.title.toLowerCase().includes(query.toLowerCase())
   );
@@ -113,7 +119,7 @@ export default function Search() {
   const resultsBarbers = filteredBarbers.filter((barber) => {
     if (minRating && barber.rating < minRating) return false;
     if (cityValue && !barber.location.toLowerCase().includes(String(cityValue))) return false;
-    if (kmValue && Number.parseFloat(barber.distance) > Number(kmValue)) return false;
+    if (kmValue && barber.distanceKm > Number(kmValue)) return false;
     if (selectedServices.length > 0) {
       const barberServiceNames = barber.services.map((s) => s.name);
       if (!selectedServices.some((s) => barberServiceNames.includes(s))) return false;
@@ -246,7 +252,7 @@ export default function Search() {
               className="mr-4 h-[17rem] rounded-3xl overflow-hidden border border-[#FFD60A55]"
             >
               <ImageBackground source={{ uri: item.image }} resizeMode="cover" className="w-full h-full">
-                <LinearGradient colors={["#000000ea", "#0000000e"]} start={{ x: 0.5, y: 1.0 }} end={{ x: 0.5, y: 0.0 }} className="flex-1 justify-end p-7">
+                <LinearGradient colors={["#000000ea", "#0000000e"] as const} start={{ x: 0.5, y: 1.0 }} end={{ x: 0.5, y: 0.0 }} className="flex-1 justify-end p-7">
                     <View>
                     <View className="self-start bg-[#FFD60A] rounded-full px-3 py-1 mb-2">
                       <Text className="text-black text-[10px] font-bold uppercase">Limited offer</Text>
@@ -263,7 +269,7 @@ export default function Search() {
         {resultsBarbers.map((barber) => (
           <TouchableOpacity key={barber.id} onPress={() => router.push(`/barber/${barber.id}`)} className="items-center bg-neutral-900 border border-neutral-800 p-4 shadow-soft mb-4 rounded-3xl">
             <View className="flex-row items-center w-full">
-              <Image source={{ uri: barber.logo }} className="w-16 h-16 rounded-full mr-4 border-2 border-[#FFD60A]" resizeMode="cover" />
+              <Image source={{ uri: barber.logoUrl }} className="w-16 h-16 rounded-full mr-4 border-2 border-[#FFD60A]" resizeMode="cover" />
 
               <View className="flex-1">
                 <View className="flex-row items-center">
@@ -272,7 +278,7 @@ export default function Search() {
                     <Text className="text-emerald-400 text-[10px] font-bold">OPEN</Text>
                   </View>
                 </View>
-                <Text className="text-sm text-neutral-300 mt-1">{barber.location} • {barber.distance}</Text>
+                <Text className="text-sm text-neutral-300 mt-1">{barber.location} • {barber.distanceKm} km</Text>
 
                 <View className="flex-row items-center mt-1">
                   {[1, 2, 3, 4, 5].map((i) => (
@@ -303,11 +309,11 @@ export default function Search() {
               contentContainerStyle={{ marginTop: 16, paddingRight: 12 }}
               renderItem={({ item }) => (
                 <TouchableOpacity className="rounded-2xl shadow-md ml-3 w-[10rem] h-[13rem] border border-[#FFD60A55] overflow-hidden">
-                  <ImageBackground source={{ uri: item.image }} resizeMode="cover" className="w-full h-full justify-end" imageStyle={{ borderRadius: 8 }}>
+                  <ImageBackground source={{ uri: item.imageUrl }} resizeMode="cover" className="w-full h-full justify-end" imageStyle={{ borderRadius: 8 }}>
                     <View className="absolute inset-0 bg-black/40 rounded-sm" />
                     <View className="p-3">
                       <Text className="text-base font-semibold text-white drop-shadow-lg">{item.name}</Text>
-                      <Text className="text-gray-200 text-xs mt-1">{item.duration} • {item.price}</Text>
+                      <Text className="text-gray-200 text-xs mt-1">{item.durationMinutes} min • {item.price} TND</Text>
                     </View>
                   </ImageBackground>
                 </TouchableOpacity>

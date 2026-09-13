@@ -212,3 +212,6 @@ export const salesPacks = [
     price: "$20",
   },
 ];
+export default function DataRoute() {
+  return null;
+}

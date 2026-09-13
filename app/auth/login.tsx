@@ -3,21 +3,29 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/src/auth/AuthContext";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const isDark = useColorScheme() === "dark";
+  const backgroundColors: readonly [string, string, string] = isDark ? ["#0f172a", "#1e293b", "#1a1a2e"] : ["#f8fafc", "#e2e8f0", "#dbeafe"];
+  const textPrimary = isDark ? "#FFFFFF" : "#0F172A";
+  const textSecondary = isDark ? "#9CA3AF" : "#475569";
+  const inputBorder = isDark ? "rgba(245, 158, 11, 0.35)" : "rgba(245, 158, 11, 0.7)";
+  const inputBackground = isDark ? "rgba(17, 24, 39, 0.65)" : "rgba(255, 255, 255, 0.8)";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -49,7 +57,6 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(email, password);
-      // Navigation happens automatically through AuthContext state change
     } catch {
       setErrors({ email: "Invalid email or password" });
     } finally {
@@ -58,208 +65,105 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={["#0f172a", "#1e293b", "#1a1a2e"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
-      <SafeAreaView className="flex-1">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
-        >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            showsVerticalScrollIndicator={false}
-            className="px-6"
-          >
-            {/* Header with Back Button */}
-            <View className="flex-row items-center justify-between mt-6 mb-12">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                disabled={isLoading}
-                className="flex-row items-center gap-2"
-              >
+    <LinearGradient colors={backgroundColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={() => router.back()} disabled={isLoading} style={styles.backButton}>
                 <ArrowLeft size={24} color="#f59e0b" strokeWidth={2} />
               </TouchableOpacity>
-              <View className="flex-1 h-1 w-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full mx-4" />
+              <View style={styles.dividerLine} />
             </View>
 
-            {/* Title */}
-            <View className="mb-10">
-              <Text
-                style={{ fontFamily: "PlayfairB" }}
-                className="text-5xl font-bold text-white mb-3"
-              >
-                Welcome Back
-              </Text>
-              <Text className="text-gray-400 text-base leading-relaxed">
-                Sign in to access your bookings and preferences
-              </Text>
+            <View style={styles.titleWrap}>
+              <Text style={[styles.title, { color: textPrimary, fontFamily: "PlayfairB" }]}>Welcome Back</Text>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>Sign in to access your bookings and preferences</Text>
             </View>
 
-            {/* Form Container */}
-            <View className="flex-1 justify-center mb-8">
-              {/* Email Input */}
-              <View className="mb-7">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  EMAIL ADDRESS
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.email
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Mail
-                    size={20}
-                    color={errors.email ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+            <View style={styles.formWrap}>
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>EMAIL ADDRESS</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.email ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Mail size={20} color={errors.email ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="your@email.com"
                     placeholderTextColor="#6b7280"
                     value={email}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setEmail(text);
                       if (errors.email) setErrors({ ...errors, email: undefined });
                     }}
                     editable={!isLoading}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
-                {errors.email && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.email}
-                  </Text>
-                )}
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
-              {/* Password Input */}
-              <View className="mb-2">
-                <Text className="text-white font-bold text-sm mb-3 tracking-wide">
-                  PASSWORD
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-2xl px-5 py-4 border-2 transition-colors ${
-                    errors.password
-                      ? "border-red-500 bg-red-500/10"
-                      : "border-amber-500/30 bg-gray-900/60"
-                  }`}
-                >
-                  <Lock
-                    size={20}
-                    color={errors.password ? "#ef4444" : "#f59e0b"}
-                    strokeWidth={1.5}
-                  />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.label, { color: textPrimary }]}>PASSWORD</Text>
+                <View style={[styles.inputContainer, { borderColor: errors.password ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                  <Lock size={20} color={errors.password ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
                   <TextInput
                     placeholder="••••••••"
                     placeholderTextColor="#6b7280"
                     value={password}
+                    style={[styles.input, { color: textPrimary }]}
                     onChangeText={(text) => {
                       setPassword(text);
-                      if (errors.password)
-                        setErrors({ ...errors, password: undefined });
+                      if (errors.password) setErrors({ ...errors, password: undefined });
                     }}
                     editable={!isLoading}
                     secureTextEntry={!showPassword}
-                    className="flex-1 ml-4 text-white text-base font-medium"
                     autoCapitalize="none"
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <Eye size={20} color="#f59e0b" strokeWidth={1.5} />
-                    ) : (
-                      <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />
-                    )}
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading} style={styles.iconButton}>
+                    {showPassword ? <Eye size={20} color="#f59e0b" strokeWidth={1.5} /> : <EyeOff size={20} color="#f59e0b" strokeWidth={1.5} />}
                   </TouchableOpacity>
                 </View>
-                {errors.password && (
-                  <Text className="text-red-500 text-xs font-semibold mt-2">
-                    {errors.password}
-                  </Text>
-                )}
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               </View>
 
-              {/* Forgot Password */}
-              <TouchableOpacity disabled={isLoading} className="self-end mb-10 mt-2">
-                <Text className="text-amber-400 font-bold text-sm">
-                  Forgot Password?
-                </Text>
+              <TouchableOpacity disabled={isLoading} style={styles.forgotButton}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-              {/* Login Button */}
-              <TouchableOpacity
-                onPress={handleLogin}
-                disabled={isLoading}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={["#f59e0b", "#d97706"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  className="rounded-2xl py-5 flex-row items-center justify-center gap-3 shadow-lg"
-                >
+              <TouchableOpacity onPress={handleLogin} disabled={isLoading} activeOpacity={0.85}>
+                <LinearGradient colors={["#f59e0b", "#d97706"] as const} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primaryButton}>
                   {isLoading ? (
                     <ActivityIndicator color="white" size="small" />
                   ) : (
                     <>
-                      <Text className="text-white text-lg font-bold tracking-wide">
-                        Sign In
-                      </Text>
-                      <ArrowRight
-                        size={20}
-                        color="white"
-                        strokeWidth={2.5}
-                      />
+                      <Text style={styles.primaryButtonText}>Sign In</Text>
+                      <ArrowRight size={20} color="white" strokeWidth={2.5} />
                     </>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
-            {/* Divider */}
-            <View className="flex-row items-center mb-7">
-              <View className="flex-1 h-px bg-gray-700" />
-              <Text className="text-gray-500 mx-4 text-xs font-medium">OR CONTINUE WITH</Text>
-              <View className="flex-1 h-px bg-gray-700" />
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLineThin} />
+              <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+              <View style={styles.dividerLineThin} />
             </View>
 
-            {/* Social Login Buttons */}
-            <View className="flex-row gap-4 mb-8">
-              <TouchableOpacity
-                disabled={isLoading}
-                className="flex-1 border-2 border-gray-700 rounded-2xl py-4 items-center backdrop-blur-sm hover:border-amber-500/50"
-              >
-                <Text className="text-white font-bold">Google</Text>
+            <View style={styles.socialRow}>
+              <TouchableOpacity disabled={isLoading} style={styles.socialButton}>
+                <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                disabled={isLoading}
-                className="flex-1 border-2 border-gray-700 rounded-2xl py-4 items-center backdrop-blur-sm hover:border-amber-500/50"
-              >
-                <Text className="text-white font-bold">Apple</Text>
+              <TouchableOpacity disabled={isLoading} style={styles.socialButton}>
+                <Text style={styles.socialButtonText}>Apple</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Register Link */}
-            <View className="flex-row items-center justify-center pb-6">
-              <Text className="text-gray-400 text-sm">
-                Don&apos;t have an account?{" "}
-              </Text>
-              <TouchableOpacity
-                onPress={() => router.push("/auth/register")}
-                disabled={isLoading}
-              >
-                <Text className="text-amber-400 font-bold text-sm ml-1">
-                  Create One
-                </Text>
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+              <TouchableOpacity onPress={() => router.push("/auth/register")} disabled={isLoading}>
+                <Text style={styles.footerLink}>Create One</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -268,3 +172,37 @@ export default function LoginScreen() {
     </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
+  keyboardView: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12, marginBottom: 32 },
+  backButton: { padding: 8 },
+  dividerLine: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "#f59e0b", marginLeft: 16 },
+  titleWrap: { marginBottom: 32 },
+  title: { fontSize: 44, fontWeight: "700", marginBottom: 8 },
+  subtitle: { fontSize: 16, lineHeight: 24 },
+  formWrap: { flex: 1, justifyContent: "center", marginBottom: 24 },
+  fieldWrap: { marginBottom: 24 },
+  label: { fontSize: 12, fontWeight: "700", marginBottom: 10, letterSpacing: 0.8 },
+  inputContainer: { flexDirection: "row", alignItems: "center", borderWidth: 2, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14 },
+  input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: "500" },
+  errorText: { color: "#ef4444", fontSize: 12, fontWeight: "600", marginTop: 8 },
+  forgotButton: { alignSelf: "flex-end", marginTop: 2, marginBottom: 24 },
+  forgotText: { color: "#fbbf24", fontSize: 13, fontWeight: "700" },
+  primaryButton: { borderRadius: 18, paddingVertical: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", shadowColor: "#f59e0b", shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  primaryButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", letterSpacing: 0.5 },
+  dividerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  dividerLineThin: { flex: 1, height: 1, backgroundColor: "#374151" },
+  dividerText: { color: "#6b7280", fontSize: 11, fontWeight: "600", marginHorizontal: 14 },
+  socialRow: { flexDirection: "row", marginBottom: 28 },
+  socialButton: { flex: 1, borderWidth: 2, borderColor: "#374151", borderRadius: 18, paddingVertical: 14, alignItems: "center", marginHorizontal: 6, backgroundColor: "rgba(255,255,255,0.02)" },
+  socialButtonText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  footerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingBottom: 8 },
+  footerText: { color: "#9CA3AF", fontSize: 14 },
+  footerLink: { color: "#fbbf24", fontSize: 14, fontWeight: "700" },
+  iconButton: { paddingHorizontal: 4 },
+});

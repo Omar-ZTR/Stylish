@@ -1,14 +1,18 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Image, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { barbers, salesPacks } from "../data";
+import { api, type Barber } from "@/src/lib/api";
+import { salesPacks } from "@/src/data";
 import "../global.css";
 
 export default function BarberProfile() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const id = params.id as string | undefined;
-  const barber = barbers.find((b) => b.id === id);
+  const [barber, setBarber] = useState<Barber | null>(null);
+  useEffect(() => {
+    if (id) api.getBarber(id).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
+  }, [id]);
 
   const [tab, setTab] = useState<"about" | "news" | "services" | "packs">("about");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -68,14 +72,14 @@ export default function BarberProfile() {
       </TouchableOpacity>
 
       <View className="h-44 w-full">
-        <Image source={{ uri: barber.logo }} className="w-full h-full opacity-50" resizeMode="cover" />
+        <Image source={{ uri: barber.logoUrl }} className="w-full h-full opacity-50" resizeMode="cover" />
         <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </View>
 
       <View className="-mt-16 px-4">
         <View className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800 shadow-soft">
           <View className="flex-row items-center">
-            <Image source={{ uri: barber.logo }} className="w-28 h-28 rounded-full border-2 border-[#FFD60A] mr-4" />
+            <Image source={{ uri: barber.logoUrl }} className="w-28 h-28 rounded-full border-2 border-[#FFD60A] mr-4" />
             <View className="flex-1">
               <Text className="text-2xl font-PlayfairB text-white">{barber.name}</Text>
               <Text className="text-sm text-neutral-300 mt-1">📍 {barber.location}</Text>
@@ -142,9 +146,9 @@ export default function BarberProfile() {
                       }}
                       className={`w-[48%] mb-3 bg-neutral-900 p-3 rounded-md border ${selected ? "border-[#FFD60A] bg-[#FFD60A11]" : "border-neutral-800"} items-center relative`}
                     >
-                      <Image source={{ uri: s.image }} className="w-20 h-20 rounded-md mb-3" />
+                      <Image source={{ uri: s.imageUrl }} className="w-20 h-20 rounded-md mb-3" />
                       <Text className="text-base text-white font-semibold text-center">{s.name}</Text>
-                      <Text className="text-sm text-neutral-300 mt-1">{s.price}</Text>
+                      <Text className="text-sm text-neutral-300 mt-1">{s.price} TND • {s.durationMinutes} min</Text>
 
                       {/* <TouchableOpacity
                         onPress={(e) => {

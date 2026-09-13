@@ -1,5 +1,5 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
-import { api, setAuthToken, type User } from "@/src/lib/api";
+import { api, setAuthToken, type User } from "../lib/api";
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -48,4 +48,8 @@ export function useAuth() {
     throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
+}
+
+export default function AuthContextRoute() {
+  return null;
 }

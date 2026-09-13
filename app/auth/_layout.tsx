@@ -5,7 +5,7 @@ export default function AuthLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
+        animation: "default",
         gestureEnabled: true,
       }}
     >
@@ -13,14 +13,14 @@ export default function AuthLayout() {
       <Stack.Screen
         name="login"
         options={{
-          animationEnabled: true,
+          animation: "default",
           presentation: "card",
         }}
       />
       <Stack.Screen
         name="register"
         options={{
-          animationEnabled: true,
+          animation: "default",
           presentation: "card",
         }}
       />

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { barbers } from "../../data";
+import { api, type Barber } from "@/src/lib/api";
 import "../../global.css";
 
 export default function Booking() {
@@ -10,7 +10,10 @@ export default function Booking() {
   const barberId = params.barberId as string | undefined;
   const serviceId = params.serviceId as string | undefined;
 
-  const barber = useMemo(() => barbers.find((b) => b.id === barberId), [barberId]);
+  const [barber, setBarber] = useState<Barber | null>(null);
+  useEffect(() => {
+    if (barberId) api.getBarber(barberId).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
+  }, [barberId]);
   const service = useMemo(() => barber?.services.find((s) => s.id === serviceId), [barber, serviceId]);
 
   const [dateIndex, setDateIndex] = useState(0);
@@ -22,7 +25,7 @@ export default function Booking() {
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(today.getDate() + i);
-      arr.push(d.toDateString());
+      arr.push(d.toISOString().slice(0, 10));
     }
     return arr;
   }, []);
@@ -37,9 +40,17 @@ export default function Booking() {
     );
   }
 
-  function confirm() {
-    Alert.alert("Booking confirmed", `You booked ${service!.name} at ${barber!.name} on ${dates[dateIndex]} at ${times[timeIndex]}`);
-    router.back();
+  const selectedBarber = barber;
+  const selectedService = service;
+
+  async function confirm() {
+    try {
+      await api.createBooking({ barberId: selectedBarber.id, serviceIds: [selectedService.id], bookingDate: dates[dateIndex], startTime: times[timeIndex] });
+      Alert.alert("Booking confirmed", `You booked ${selectedService.name} at ${selectedBarber.name}.`);
+      router.replace("/(tabs)/profile");
+    } catch (error) {
+      Alert.alert("Booking unavailable", error instanceof Error ? error.message : "Please try another time.");
+    }
   }
 
   return (
@@ -50,11 +61,11 @@ export default function Booking() {
 
       <View className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800">
         <View className="flex-row items-center">
-          <Image source={{ uri: barber.logo }} className="w-20 h-20 rounded-full mr-4" />
+          <Image source={{ uri: barber.logoUrl }} className="w-20 h-20 rounded-full mr-4" />
           <View>
             <Text className="text-lg font-PlayfairB text-white">{barber.name}</Text>
             <Text className="text-sm text-neutral-300">{service.name}</Text>
-            <Text className="text-sm text-neutral-400 mt-1">{service.duration} • {service.price}</Text>
+            <Text className="text-sm text-neutral-400 mt-1">{service.durationMinutes} min • {service.price} TND</Text>
           </View>
         </View>
 
@@ -62,7 +73,7 @@ export default function Booking() {
         <View className="flex-row gap-2 mb-4">
           {dates.map((d, i) => (
             <TouchableOpacity key={d} onPress={() => setDateIndex(i)} className={`px-3 py-2 rounded-md ${dateIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-              <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(d).toLocaleDateString()}</Text>
+              <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(`${d}T12:00:00`).toLocaleDateString()}</Text>
             </TouchableOpacity>
           ))}
         </View>

@@ -19,7 +19,7 @@ const Layout = () => {
            const isSettings = route.name === "settings"
            return (
           <LinearGradient
-            colors={["#1a1a1a", "#0f0f0f"]}
+            colors={["#1a1a1a", "#0f0f0f"] as const}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             className="border-b border-gray-800"

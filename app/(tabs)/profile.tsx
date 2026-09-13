@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { api, type Booking } from '@/src/lib/api';
+import { useAuth } from '@/src/auth/AuthContext';
 import '../global.css';
 
 interface BookingHistory {
@@ -15,57 +17,39 @@ interface BookingHistory {
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet'>('info');
+  const { user: authUser, logout } = useAuth();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [barberNames, setBarberNames] = useState<Record<string, string>>({});
 
-  // Mock user data
+  useEffect(() => {
+    Promise.all([api.getBookings(), api.getBarbers()]).then(([bookingResult, barberResult]) => {
+      setBookings(bookingResult.bookings);
+      setBarberNames(Object.fromEntries(barberResult.barbers.map((barber) => [barber.id, barber.name])));
+    }).catch(() => {
+      setBookings([]);
+      setBarberNames({});
+    });
+  }, []);
+
   const user = {
-    name: 'Ahmed Saïd',
-    email: 'ahmed.said@email.com',
-    phone: '+216 98 765 432',
+    name: authUser?.fullName ?? 'Stylish customer',
+    email: authUser?.email ?? '',
+    phone: authUser?.phone ?? 'Not provided',
     location: 'Tunis, Tunisia',
     avatar: 'https://picsum.photos/id/1005/200/200',
-    memberSince: 'January 2024',
-    totalBookings: 12,
+    memberSince: authUser ? new Date(authUser.createdAt).toLocaleDateString() : '',
+    totalBookings: bookings.length,
   };
 
-  // Mock booking history
-  const bookingHistory: BookingHistory[] = [
-    {
-      id: '1',
-      barber: 'Tony FadeMaster',
-      service: 'Classic Haircut + Beard Trim',
-      date: '2025-02-05',
-      time: '14:30',
-      price: '45 TND',
-      status: 'completed',
-    },
-    {
-      id: '2',
-      barber: 'Slim the Stylist',
-      service: 'Modern Fade',
-      date: '2025-02-12',
-      time: '10:00',
-      price: '30 TND',
-      status: 'upcoming',
-    },
-    {
-      id: '3',
-      barber: 'Barber House',
-      service: 'Hair Coloring',
-      date: '2025-01-28',
-      time: '16:00',
-      price: '50 TND',
-      status: 'completed',
-    },
-    {
-      id: '4',
-      barber: 'Tony FadeMaster',
-      service: 'Hot Towel Shave',
-      date: '2025-01-15',
-      time: '11:00',
-      price: '20 TND',
-      status: 'completed',
-    },
-  ];
+  const bookingHistory: BookingHistory[] = bookings.map((booking) => ({
+    id: booking.id,
+    barber: barberNames[booking.barberId] ?? 'Barber',
+    service: `${booking.serviceIds.length} service${booking.serviceIds.length === 1 ? '' : 's'}`,
+    date: booking.bookingDate,
+    time: booking.startTime,
+    price: `${booking.totalPrice} TND`,
+    status: booking.status === 'cancelled' ? 'cancelled' : booking.status === 'completed' ? 'completed' : 'upcoming',
+  }));
 
   // Mock wallet data
   const wallet = {
@@ -219,7 +203,7 @@ const Profile = () => {
               <Text className="text-black text-center font-bold">Edit Profile</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity className="bg-red-600/20 border border-red-600 rounded-xl py-4">
+            <TouchableOpacity onPress={logout} className="bg-red-600/20 border border-red-600 rounded-xl py-4">
               <Text className="text-red-500 text-center font-bold">Logout</Text>
             </TouchableOpacity>
           </View>
