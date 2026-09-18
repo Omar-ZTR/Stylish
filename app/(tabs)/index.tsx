@@ -255,7 +255,7 @@ export default function Index() {
         </View>
 
         {/* Stories Section - Like Instagram */}
-        <View className="mb-6">
+        {/* <View className="mb-6">
           <FlatList
             data={stories}
             horizontal
@@ -279,7 +279,7 @@ export default function Index() {
               </TouchableOpacity>
             )}
           />
-        </View>
+        </View> */}
 
         {/* Actualité (News) Section */}
         <View className="mb-6">
@@ -288,7 +288,7 @@ export default function Index() {
             {news.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                className="bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800"
+                className="bg-neutral-900 rounded-l overflow-hidden border border-neutral-800 py-8 my-2"
               >
                 <Image
                   source={{ uri: item.image }}

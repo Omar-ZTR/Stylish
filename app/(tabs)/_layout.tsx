@@ -1,18 +1,47 @@
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
-import { Tabs, useRouter } from "expo-router"
+import { Tabs, useRouter, useSegments } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { ArrowLeft } from "lucide-react-native"
 import { Text, TouchableOpacity, View } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import { runOnJS } from "react-native-reanimated"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+import { useAuth } from "@/src/auth/AuthContext"
 
 const Layout = () => {
   const router = useRouter()
+  const { user } = useAuth()
+  const isBarber = user?.role === "barber"
+  const segments = useSegments()
+  const tabRoutes = ["index", "search", "favorites", "notifications", "profile"] as const
+  const lastSegment = segments[segments.length - 1]
+  const currentTab = lastSegment === "(tabs)" ? "index" : lastSegment ?? "index"
+
+  const navigateBySwipe = (direction: 1 | -1) => {
+    const currentIndex = tabRoutes.indexOf(currentTab as (typeof tabRoutes)[number])
+    const nextIndex = currentIndex + direction
+
+    if (currentIndex >= 0 && nextIndex >= 0 && nextIndex < tabRoutes.length) {
+      const nextRoute = tabRoutes[nextIndex]
+      router.replace(nextRoute === "index" ? "/(tabs)" : `/(tabs)/${nextRoute}` as any)
+    }
+  }
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-20, 20])
+    .onEnd((event) => {
+      if (Math.abs(event.translationX) < 60 && Math.abs(event.velocityX) < 400) return
+      runOnJS(navigateBySwipe)(event.translationX < 0 ? 1 : -1)
+    })
 
   return (
-   <SafeAreaProvider>
+  <SafeAreaProvider>
      <StatusBar style="light" />
-     <Tabs
+     <GestureDetector gesture={swipeGesture}>
+       <View collapsable={false} style={{ flex: 1 }}>
+       <Tabs
        screenOptions={({ route }) => ({
          headerShown: true,
          header: () => {
@@ -41,13 +70,14 @@ const Layout = () => {
                   Stylish
                 </Text>
               )}
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/settings")}
-                className="p-2"
-                activeOpacity={0.7}
-              >
-                <Ionicons name="menu" size={28} color="#f59e0b" />
-              </TouchableOpacity>
+              <View className="flex-row items-center">
+                <TouchableOpacity onPress={() => router.push("/notifications")} className="p-2" activeOpacity={0.7}>
+                  <Ionicons name="notifications-outline" size={25} color="#f59e0b" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push("/(tabs)/settings")} className="p-2" activeOpacity={0.7}>
+                  <Ionicons name="menu" size={28} color="#f59e0b" />
+                </TouchableOpacity>
+              </View>
             </View>
           </LinearGradient>
            )
@@ -57,8 +87,8 @@ const Layout = () => {
             route.name === "index" ? "home" :
             route.name === "search" ? "search" :
             route.name === "profile" ? "person" :
-            route.name === "favorites" ? "bookmark" :
-            route.name === "notifications" ? "notifications" :
+            route.name === "favorites" ? (isBarber ? "cut" : "bookmark") :
+            route.name === "notifications" ? (isBarber ? "calendar" : "notifications") :
             "ellipse";
            return (
             <Ionicons 
@@ -88,12 +118,13 @@ const Layout = () => {
      >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="search" options={{ title: "Search" }} />
-      <Tabs.Screen name="favorites" options={{ title: "Saved" }} />
-      <Tabs.Screen name="notifications" options={{ title: "Updates" }} />
+      <Tabs.Screen name="favorites" options={{ title: isBarber ? "Services" : "Saved" }} />
+      <Tabs.Screen name="notifications" options={{ title: isBarber ? "Bookings" : "Updates" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings", href: null }} />
-     </Tabs>
-   </SafeAreaProvider>
+       </Tabs></View>
+     </GestureDetector>
+    </SafeAreaProvider>
   )
 }
 

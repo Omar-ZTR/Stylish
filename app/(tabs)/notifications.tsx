@@ -2,10 +2,15 @@ import { Ionicons } from '@expo/vector-icons'
 import React, { useCallback, useEffect, useState } from 'react'
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { api, type Notification as ApiNotification } from '@/src/lib/api'
+import { useAuth } from '@/src/auth/AuthContext'
+import BarberBookings from '@/src/components/BarberBookings'
 
 const Notifications = () => {
+  const { user } = useAuth()
   const [items, setItems] = useState<ApiNotification[]>([])
   const [refreshing, setRefreshing] = useState(false)
+
+  if (user?.role === 'barber') return <BarberBookings />
 
   const loadNotifications = useCallback(async () => {
     setRefreshing(true)

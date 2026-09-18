@@ -4,7 +4,24 @@ export interface User {
   email: string;
   phone?: string;
   role: string;
+  barberId?: string;
   createdAt: string;
+}
+
+export interface RegistrationData {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password: string;
+  role?: "customer" | "barber";
+  barberProfile?: {
+    businessName: string;
+    location: string;
+    startTime: string;
+    endTime: string;
+    pauseStartTime?: string;
+    pauseEndTime?: string;
+  };
 }
 
 export interface Service {
@@ -18,6 +35,7 @@ export interface Service {
 
 export interface Barber {
   id: string;
+  ownerId?: string;
   name: string;
   logoUrl: string;
   rating: number;
@@ -25,6 +43,9 @@ export interface Barber {
   distanceKm: number;
   startTime: string;
   endTime: string;
+  pauseStartTime?: string;
+  pauseEndTime?: string;
+  autoAcceptBookings?: boolean;
   services: Service[];
 }
 
@@ -49,7 +70,7 @@ export interface Notification {
 }
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
-const defaultUrl = configuredUrl ?? "http://192.168.1.7:4000";
+const defaultUrl = configuredUrl ?? "http://192.168.1.2:4000";
 export const API_URL = defaultUrl.replace(/\/$/, "");
 
 let authToken: string | null = null;
@@ -72,7 +93,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  register: (data: { fullName: string; email: string; phone?: string; password: string }) =>
+  register: (data: RegistrationData) =>
     request<{ user: User; token: string }>("/api/auth/register", { method: "POST", body: JSON.stringify(data) }),
   login: (email: string, password: string) =>
     request<{ user: User; token: string }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
@@ -86,7 +107,19 @@ export const api = {
     return request<{ barbers: Barber[] }>(`/api/barbers${query.toString() ? `?${query}` : ""}`);
   },
   getBarber: (id: string) => request<{ barber: Barber }>(`/api/barbers/${id}`),
-  getAvailability: (id: string, date: string) => request<{ booked: { startTime: string; endTime: string }[] }>(`/api/barbers/${id}/availability?date=${encodeURIComponent(date)}`),
+  getMyBarber: () => request<{ barber: Barber }>('/api/barbers/mine'),
+  updateMyBarber: (data: Pick<Barber, 'name' | 'location' | 'startTime' | 'endTime' | 'pauseStartTime' | 'pauseEndTime' | 'autoAcceptBookings'>) =>
+    request<{ barber: Barber }>('/api/barbers/mine', { method: 'PATCH', body: JSON.stringify(data) }),
+  getMyBookings: () => request<{ bookings: Booking[] }>('/api/barbers/mine/bookings'),
+  updateMyBooking: (id: string, status: 'confirmed' | 'cancelled') =>
+    request<{ booking: Booking }>(`/api/barbers/mine/bookings/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  createMyService: (data: { name: string; durationMinutes: number; price: number; imageUrl?: string }) =>
+    request<{ service: Service }>('/api/barbers/mine/services', { method: 'POST', body: JSON.stringify(data) }),
+  updateMyService: (id: string, data: { name: string; durationMinutes: number; price: number; imageUrl?: string }) =>
+    request<{ service: Service }>(`/api/barbers/mine/services/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteMyService: (id: string) =>
+    request<{ deleted: boolean }>(`/api/barbers/mine/services/${id}`, { method: 'DELETE' }),
+  getAvailability: (id: string, date: string) => request<{ booked: { startTime: string; endTime: string }[]; openingHours: { start: string; end: string; pauseStart?: string; pauseEnd?: string } }>(`/api/barbers/${id}/availability?date=${encodeURIComponent(date)}`),
   getFavorites: () => request<{ barbers: Barber[] }>("/api/favorites"),
   toggleFavorite: (barberId: string) => request<{ saved: boolean }>(`/api/favorites/${barberId}`, { method: "POST" }),
   createBooking: (data: { barberId: string; serviceIds: string[]; bookingDate: string; startTime: string }) =>

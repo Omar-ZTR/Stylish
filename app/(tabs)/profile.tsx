@@ -21,6 +21,7 @@ const Profile = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
 
+
   useEffect(() => {
     Promise.all([api.getBookings(), api.getBarbers()]).then(([bookingResult, barberResult]) => {
       setBookings(bookingResult.bookings);
@@ -29,7 +30,7 @@ const Profile = () => {
       setBookings([]);
       setBarberNames({});
     });
-  }, []);
+  }, [authUser?.role]);
 
   const user = {
     name: authUser?.fullName ?? 'Stylish customer',

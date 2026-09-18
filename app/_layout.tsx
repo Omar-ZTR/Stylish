@@ -2,6 +2,7 @@ import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { SplashScreen, Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Text, View, useColorScheme } from "react-native";
 import { AuthProvider, useAuth } from "@/src/auth/AuthContext";
 import "./global.css";
@@ -81,6 +82,7 @@ function RootLayoutContent() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="auth" options={{ animation: "none" }} />
       <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
+      <Stack.Screen name="notifications" options={{ presentation: "card", title: "Notifications" }} />
       <Stack.Screen
         name="barber/[id]"
         options={{
@@ -108,9 +110,11 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutContent />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutContent />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

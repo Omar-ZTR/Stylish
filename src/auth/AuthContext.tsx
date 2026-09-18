@@ -1,11 +1,11 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
-import { api, setAuthToken, type User } from "../lib/api";
+import { api, setAuthToken, type RegistrationData, type User } from "../lib/api";
 
 interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { fullName: string; email: string; phone?: string; password: string }) => Promise<void>;
+  register: (data: RegistrationData) => Promise<void>;
   logout: () => void;
 }
 
@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
   };
 
-  const register = async (data: { fullName: string; email: string; phone?: string; password: string }) => {
+  const register = async (data: RegistrationData) => {
     const result = await api.register(data);
     setAuthToken(result.token);
     setUser(result.user);

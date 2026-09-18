@@ -11,8 +11,11 @@ import {
     View,
 } from 'react-native'
 import { api, type Barber } from '@/src/lib/api'
+import { useAuth } from '@/src/auth/AuthContext'
+import BarberDashboard from '@/src/components/BarberDashboard'
 
 const Favorites = () => {
+  const { user, logout } = useAuth()
   const [items, setItems] = useState<Barber[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
@@ -31,6 +34,7 @@ const Favorites = () => {
     let active = true
 
     const fetchFavorites = async () => {
+      if (user?.role === 'barber') return
       try {
         const result = await api.getFavorites()
         if (active) setItems(result.barbers)
@@ -44,7 +48,7 @@ const Favorites = () => {
     return () => {
       active = false
     }
-  }, [])
+  }, [user?.role])
 
   const onRefresh = useCallback(() => {
     void loadFavorites()
@@ -53,6 +57,10 @@ const Favorites = () => {
   const removeItem = async (id: string) => {
     await api.toggleFavorite(id)
     setItems(prev => prev.filter(item => item.id !== id))
+  }
+
+  if (user?.role === 'barber') {
+    return <BarberDashboard onLogout={logout} />
   }
 
   const renderItem = ({ item }: { item: Barber }) => (

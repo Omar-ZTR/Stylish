@@ -3,12 +3,16 @@ import { useRouter } from "expo-router";
 import {
   ArrowLeft,
   ArrowRight,
+  BriefcaseBusiness,
   CheckCircle,
+  Clock3,
   Eye,
   EyeOff,
   Lock,
+  MapPin,
   Mail,
   Phone,
+  Scissors,
   User,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -18,6 +22,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -39,6 +44,14 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [accountType, setAccountType] = useState<"customer" | "barber" | null>(null);
+  const [businessName, setBusinessName] = useState("");
+  const [location, setLocation] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("19:00");
+  const [pauseEnabled, setPauseEnabled] = useState(false);
+  const [pauseStartTime, setPauseStartTime] = useState("13:00");
+  const [pauseEndTime, setPauseEndTime] = useState("14:00");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -49,6 +62,8 @@ export default function RegisterScreen() {
     fullName?: string;
     email?: string;
     phone?: string;
+    businessName?: string;
+    location?: string;
     password?: string;
     confirmPassword?: string;
     terms?: string;
@@ -71,8 +86,13 @@ export default function RegisterScreen() {
 
     if (!phone.trim()) {
       newErrors.phone = "Phone number is required";
-    } else if (phone.replace(/\D/g, "").length < 10) {
-      newErrors.phone = "Phone number must be at least 10 digits";
+    } else if (phone.replace(/\D/g, "").length < 8) {
+      newErrors.phone = "Phone number must be at least 8 digits";
+    }
+
+    if (accountType === "barber") {
+      if (!businessName.trim()) newErrors.businessName = "Business name is required";
+      if (!location.trim()) newErrors.location = "Location is required";
     }
 
     if (!password.trim()) {
@@ -105,6 +125,8 @@ export default function RegisterScreen() {
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         password,
+        role: accountType ?? "customer",
+        ...(accountType === "barber" ? { barberProfile: { businessName: businessName.trim(), location: location.trim(), startTime, endTime, ...(pauseEnabled ? { pauseStartTime, pauseEndTime } : {}) } } : {}),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registration failed";
@@ -146,9 +168,40 @@ export default function RegisterScreen() {
               <View style={styles.headerAccent} />
             </View>
 
+            {!accountType ? (
+              <View style={styles.choiceWrap}>
+                <View style={styles.titleWrap}>
+                  <Text style={[styles.eyebrow, { color: "#f59e0b" }]}>WELCOME TO STYLISH</Text>
+                  <Text style={[styles.title, { color: textPrimary, fontFamily: "PlayfairB" }]}>How will you use Stylish?</Text>
+                  <Text style={[styles.subtitle, { color: textSecondary }]}>Choose the experience that fits you. You can start booking or grow your own chair.</Text>
+                </View>
+
+                <TouchableOpacity onPress={() => setAccountType("customer")} activeOpacity={0.85} style={[styles.roleCard, { backgroundColor: inputBackground, borderColor: inputBorder }]}>
+                  <View style={styles.roleIcon}><User size={25} color="#f59e0b" strokeWidth={1.8} /></View>
+                  <View style={styles.roleCopy}>
+                    <Text style={[styles.roleTitle, { color: textPrimary }]}>I&apos;m looking for a barber</Text>
+                    <Text style={[styles.roleDescription, { color: textSecondary }]}>Discover great barbers and book your next look.</Text>
+                  </View>
+                  <ArrowRight size={20} color="#f59e0b" />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setAccountType("barber")} activeOpacity={0.85} style={[styles.roleCard, styles.barberRoleCard]}>
+                  <View style={[styles.roleIcon, styles.barberRoleIcon]}><Scissors size={25} color="#111827" strokeWidth={1.8} /></View>
+                  <View style={styles.roleCopy}>
+                    <Text style={styles.roleTitleDark}>I&apos;m a barber</Text>
+                    <Text style={styles.roleDescriptionDark}>Create your professional profile and welcome clients.</Text>
+                  </View>
+                  <ArrowRight size={20} color="#111827" />
+                </TouchableOpacity>
+
+                <View style={styles.choiceNote}><BriefcaseBusiness size={16} color={textSecondary} /><Text style={[styles.choiceNoteText, { color: textSecondary }]}>Your profile type controls what you see after signing in.</Text></View>
+              </View>
+            ) : (
+              <>
             <View style={styles.titleWrap}>
-              <Text style={[styles.title, { color: textPrimary, fontFamily: "PlayfairB" }]}>Create Account</Text>
-              <Text style={[styles.subtitle, { color: textSecondary }]}>Join our community of style enthusiasts</Text>
+              <View style={styles.stepRow}><Text style={[styles.eyebrow, { color: "#f59e0b" }]}>STEP 2 OF 2</Text><TouchableOpacity onPress={() => setAccountType(null)} disabled={isLoading}><Text style={styles.changeRole}>Change choice</Text></TouchableOpacity></View>
+              <Text style={[styles.title, { color: textPrimary, fontFamily: "PlayfairB" }]}>{accountType === "barber" ? "Build your barber profile" : "Create Account"}</Text>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>{accountType === "barber" ? "Put your craft in front of clients who are ready for their next look." : "Join our community of style enthusiasts"}</Text>
             </View>
 
             <View style={styles.formWrap}>
@@ -212,6 +265,48 @@ export default function RegisterScreen() {
                 </View>
                 {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
               </View>
+
+              {accountType === "barber" ? (
+                <>
+                  <View style={styles.fieldWrap}>
+                    <Text style={[styles.label, { color: textPrimary }]}>BUSINESS NAME</Text>
+                    <View style={[styles.inputContainer, { borderColor: errors.businessName ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                      <Scissors size={20} color={errors.businessName ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
+                      <TextInput placeholder="The Golden Chair" placeholderTextColor="#6b7280" value={businessName} style={[styles.input, { color: textPrimary }]} onChangeText={setBusinessName} editable={!isLoading} autoCapitalize="words" />
+                    </View>
+                    {errors.businessName && <Text style={styles.errorText}>{errors.businessName}</Text>}
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={[styles.label, { color: textPrimary }]}>SHOP LOCATION</Text>
+                    <View style={[styles.inputContainer, { borderColor: errors.location ? "#ef4444" : inputBorder, backgroundColor: inputBackground }]}>
+                      <MapPin size={20} color={errors.location ? "#ef4444" : "#f59e0b"} strokeWidth={1.5} />
+                      <TextInput placeholder="Downtown Sousse" placeholderTextColor="#6b7280" value={location} style={[styles.input, { color: textPrimary }]} onChangeText={setLocation} editable={!isLoading} autoCapitalize="words" />
+                    </View>
+                    {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={[styles.label, { color: textPrimary }]}>OPENING HOURS</Text>
+                    <View style={styles.hoursRow}>
+                      <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={startTime} style={[styles.input, { color: textPrimary }]} onChangeText={setStartTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                      <Text style={[styles.toText, { color: textSecondary }]}>to</Text>
+                      <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={endTime} style={[styles.input, { color: textPrimary }]} onChangeText={setEndTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                    </View>
+                    <View style={styles.pauseToggleRow}>
+                      <View style={styles.pauseToggleCopy}><Text style={[styles.pauseTitle, { color: textPrimary }]}>Add a break</Text><Text style={[styles.pauseDescription, { color: textSecondary }]}>Optional pause during your working day</Text></View>
+                      <Switch value={pauseEnabled} onValueChange={setPauseEnabled} disabled={isLoading} trackColor={{ false: "#374151", true: "#f59e0b" }} thumbColor="#FFFFFF" />
+                    </View>
+                    {pauseEnabled ? (
+                      <View style={styles.hoursRow}>
+                        <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={pauseStartTime} style={[styles.input, { color: textPrimary }]} onChangeText={setPauseStartTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                        <Text style={[styles.toText, { color: textSecondary }]}>pause to</Text>
+                        <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={pauseEndTime} style={[styles.input, { color: textPrimary }]} onChangeText={setPauseEndTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                      </View>
+                    ) : null}
+                  </View>
+                </>
+              ) : null}
 
               <View style={styles.fieldWrap}>
                 <Text style={[styles.label, { color: textPrimary }]}>PASSWORD</Text>
@@ -305,6 +400,8 @@ export default function RegisterScreen() {
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
+              </>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -322,10 +419,32 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
   headerAccent: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "#f59e0b", marginLeft: 16 },
   titleWrap: { marginBottom: 28 },
+  choiceWrap: { flex: 1, justifyContent: "center", paddingBottom: 24 },
+  eyebrow: { fontSize: 12, fontWeight: "800", letterSpacing: 1.4, marginBottom: 12 },
+  roleCard: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 22, padding: 18, marginBottom: 14 },
+  barberRoleCard: { backgroundColor: "#f59e0b", borderColor: "#f59e0b" },
+  roleIcon: { width: 50, height: 50, borderRadius: 16, backgroundColor: "rgba(245,158,11,0.14)", alignItems: "center", justifyContent: "center", marginRight: 14 },
+  barberRoleIcon: { backgroundColor: "rgba(17,24,39,0.12)" },
+  roleCopy: { flex: 1 },
+  roleTitle: { fontSize: 16, fontWeight: "800", marginBottom: 5 },
+  roleDescription: { fontSize: 13, lineHeight: 19 },
+  roleTitleDark: { color: "#111827", fontSize: 16, fontWeight: "800", marginBottom: 5 },
+  roleDescriptionDark: { color: "rgba(17,24,39,0.72)", fontSize: 13, lineHeight: 19 },
+  choiceNote: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 14, gap: 7 },
+  choiceNoteText: { fontSize: 12 },
+  stepRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  changeRole: { color: "#fbbf24", fontSize: 12, fontWeight: "700" },
   title: { fontSize: 40, fontWeight: "700", marginBottom: 8 },
   subtitle: { fontSize: 16, lineHeight: 24 },
   formWrap: { marginBottom: 16 },
   fieldWrap: { marginBottom: 16 },
+  hoursRow: { flexDirection: "row", alignItems: "center" },
+  timeInput: { flex: 1, paddingHorizontal: 12 },
+  toText: { marginHorizontal: 9, fontSize: 13, fontWeight: "700" },
+  pauseToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14, marginBottom: 12 },
+  pauseToggleCopy: { flex: 1 },
+  pauseTitle: { fontSize: 14, fontWeight: "700" },
+  pauseDescription: { fontSize: 12, marginTop: 3 },
   label: { fontSize: 12, fontWeight: "700", marginBottom: 10, letterSpacing: 0.8 },
   inputContainer: { flexDirection: "row", alignItems: "center", borderWidth: 2, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 14 },
   input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: "500" },
