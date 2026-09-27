@@ -82,7 +82,6 @@ function RootLayoutContent() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="auth" options={{ animation: "none" }} />
       <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-      <Stack.Screen name="notifications" options={{ presentation: "card", title: "Notifications" }} />
       <Stack.Screen
         name="barber/[id]"
         options={{

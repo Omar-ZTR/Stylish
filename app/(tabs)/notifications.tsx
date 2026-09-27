@@ -1,108 +1,112 @@
-import { Ionicons } from '@expo/vector-icons'
-import React, { useCallback, useEffect, useState } from 'react'
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { api, type Notification as ApiNotification } from '@/src/lib/api'
-import { useAuth } from '@/src/auth/AuthContext'
-import BarberBookings from '@/src/components/BarberBookings'
+import { LinearGradient } from "expo-linear-gradient";
+import { Bell, CalendarClock, ChevronRight, Sparkles, TicketPercent } from "lucide-react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const Notifications = () => {
-  const { user } = useAuth()
-  const [items, setItems] = useState<ApiNotification[]>([])
-  const [refreshing, setRefreshing] = useState(false)
+const notifications = [
+  {
+    id: "1",
+    title: "Booking confirmed",
+    description: "Your haircut with Ahmed was confirmed for tomorrow at 11:00 AM.",
+    time: "2h ago",
+    icon: CalendarClock,
+    accent: "#f59e0b",
+  },
+  {
+    id: "2",
+    title: "Special offer",
+    description: "20% off premium beard grooming this weekend.",
+    time: "Yesterday",
+    icon: TicketPercent,
+    accent: "#22c55e",
+  },
+  {
+    id: "3",
+    title: "New stylist match",
+    description: "We found 3 barbers that match your preferred style.",
+    time: "2 days ago",
+    icon: Sparkles,
+    accent: "#a78bfa",
+  },
+];
 
-  if (user?.role === 'barber') return <BarberBookings />
-
-  const loadNotifications = useCallback(async () => {
-    setRefreshing(true)
-    try { setItems((await api.getNotifications()).notifications) } finally { setRefreshing(false) }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    const fetchNotifications = async () => {
-      try {
-        const result = await api.getNotifications()
-        if (active) setItems(result.notifications)
-      } catch {
-        if (active) setItems([])
-      }
-    }
-
-    void fetchNotifications()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const onRefresh = useCallback(() => { void loadNotifications() }, [loadNotifications])
-
-  const toggleRead = async (id: string) => {
-    await api.markNotificationRead(id)
-    setItems(prev => prev.map(item => item.id === id ? { ...item, isRead: true } : item))
-  }
-
-  const renderItem = ({ item }: { item: ApiNotification }) => (
-    <TouchableOpacity style={[styles.row, item.isRead ? null : styles.unread]} onPress={() => toggleRead(item.id)}>
-      <View style={styles.left}>
-        {!item.isRead && <View style={styles.dot} />}
-      </View>
-      <View style={styles.mid}>
-        <Text style={[styles.title, item.isRead ? styles.readText : null]} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.body} numberOfLines={2}>{item.body}</Text>
-      </View>
-      <View style={styles.right}>
-        <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-      </View>
-    </TouchableOpacity>
-  )
-
-  if (items.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="notifications-off-outline" size={64} color="#bbb" />
-        <Text style={styles.emptyTitle}>No notifications</Text>
-        <Text style={styles.emptySub}>You&apos;re all caught up.</Text>
-      </View>
-    )
-  }
-
+export default function NotificationsScreen() {
   return (
-    <View style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <Text style={styles.clearText}>{items.filter(item => !item.isRead).length} unread</Text>
-      </View>
-      <FlatList
-        data={items}
-        keyExtractor={i => i.id}
-        renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ padding: 12 }}
-      />
-    </View>
-  )
+    <LinearGradient colors={["#0f172a", "#111827", "#0f172a"]} style={styles.gradient}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.headerWrap}>
+            <Text style={styles.headerTitle}>Notifications</Text>
+            <Text style={styles.headerSubtitle}>Your latest updates and reminders.</Text>
+          </View>
+
+          <View style={styles.listWrap}>
+            {notifications.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <TouchableOpacity key={item.id} activeOpacity={0.8} style={styles.card}>
+                  <View style={[styles.iconWrap, { backgroundColor: `${item.accent}20` }]}>
+                    <Icon size={22} color={item.accent} strokeWidth={1.8} />
+                  </View>
+
+                  <View style={styles.textWrap}>
+                    <View style={styles.row}>
+                      <Text style={styles.title}>{item.title}</Text>
+                      <Text style={styles.time}>{item.time}</Text>
+                    </View>
+                    <Text style={styles.description}>{item.description}</Text>
+                  </View>
+
+                  <ChevronRight size={18} color="#9ca3af" strokeWidth={2} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={styles.emptyCard}>
+            <Bell size={20} color="#f59e0b" strokeWidth={1.8} />
+            <Text style={styles.emptyText}>You’re all caught up.</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
+  );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, paddingTop: 18 },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
-  clearBtn: { paddingHorizontal: 8, paddingVertical: 6 },
-  clearText: { color: '#e53935', fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 10, elevation: 1 },
-  unread: { backgroundColor: '#f8fbff' },
-  left: { width: 24, alignItems: 'center' },
-  dot: { width: 10, height: 10, borderRadius: 6, backgroundColor: '#1e88e5' },
-  mid: { flex: 1, paddingRight: 8 },
-  right: { width: 48, alignItems: 'flex-end' },
-  title: { fontSize: 15, fontWeight: '600' },
-  body: { fontSize: 13, color: '#666', marginTop: 4 },
-  time: { fontSize: 12, color: '#999' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyTitle: { fontSize: 20, fontWeight: '600', marginTop: 12 },
-  emptySub: { fontSize: 14, color: '#888', marginTop: 8 },
-  readText: { color: '#777', fontWeight: '500' },
-})
-
-export default Notifications
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 28 },
+  headerWrap: { marginBottom: 20 },
+  headerTitle: { color: "#fff", fontSize: 36, fontWeight: "700", marginBottom: 6, fontFamily: "PlayfairB" },
+  headerSubtitle: { color: "#9ca3af", fontSize: 15 },
+  listWrap: { gap: 12 },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(17,24,39,0.7)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(75,85,99,0.7)",
+    padding: 14,
+  },
+  iconWrap: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  textWrap: { flex: 1 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  title: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  time: { color: "#9ca3af", fontSize: 11 },
+  description: { color: "#d1d5db", fontSize: 12, lineHeight: 18 },
+  emptyCard: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(17,24,39,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(75,85,99,0.7)",
+    borderRadius: 16,
+    paddingVertical: 14,
+  },
+  emptyText: { color: "#f59e0b", fontWeight: "600", marginLeft: 8 },
+});

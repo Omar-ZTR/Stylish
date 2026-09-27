@@ -16,7 +16,7 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
   const [profileForm, setProfileForm] = useState({ name: "", location: "", startTime: "09:00", endTime: "19:00", pauseStartTime: "13:00", pauseEndTime: "14:00" });
   const [pauseEnabled, setPauseEnabled] = useState(false);
   const [serviceForm, setServiceForm] = useState<ServiceForm>(emptyService);
-
+ 
   const loadBarber = async () => {
     try {
       const result = await api.getMyBarber();
@@ -34,6 +34,8 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
     const timer = setTimeout(() => { void loadBarber(); }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+
 
   const openNewService = () => {
     setEditingService(null);
@@ -108,6 +110,8 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
       <View className="px-4 pt-5">
         <View className="flex-row items-center justify-between mb-3"><View><Text className="text-white text-xl font-PlayfairB">Your services</Text><Text className="text-neutral-400 text-sm mt-1">Keep your menu clear and up to date.</Text></View><TouchableOpacity onPress={openNewService} className="bg-[#FFD60A] rounded-xl p-3"><MaterialIcons name="add" size={23} color="#000" /></TouchableOpacity></View>
         {barber.services.length === 0 ? <View className="bg-neutral-900 rounded-2xl border border-dashed border-neutral-700 p-7 items-center"><MaterialIcons name="content-cut" size={36} color="#FFD60A" /><Text className="text-white font-bold mt-3">Your menu is empty</Text><Text className="text-neutral-400 text-center text-sm mt-1">Add your first service so clients can book you.</Text><TouchableOpacity onPress={openNewService} className="bg-[#FFD60A] rounded-xl px-5 py-3 mt-4"><Text className="text-black font-bold">Add first service</Text></TouchableOpacity></View> : barber.services.map((service) => <View key={service.id} className="bg-neutral-900 rounded-2xl border border-neutral-800 p-3 mb-3 flex-row items-center"><Image source={{ uri: service.imageUrl }} className="w-16 h-16 rounded-xl" /><View className="flex-1 ml-3"><Text className="text-white font-bold">{service.name}</Text><Text className="text-neutral-400 text-sm mt-1">{service.durationMinutes} min</Text><Text className="text-[#FFD60A] font-bold mt-1">{service.price} TND</Text></View><TouchableOpacity onPress={() => openEditService(service)} className="p-2"><MaterialIcons name="edit" size={20} color="#FFD60A" /></TouchableOpacity><TouchableOpacity onPress={() => deleteService(service)} className="p-2"><MaterialIcons name="delete-outline" size={22} color="#ef4444" /></TouchableOpacity></View>)}
+
+        
 
         <Text className="text-white text-xl font-PlayfairB mt-5 mb-3">Shop profile</Text>
         <View className="bg-neutral-900 rounded-2xl border border-neutral-800 p-4"><Text className="text-neutral-400 text-xs">OPENING HOURS</Text><Text className="text-white font-bold mt-1">{barber.startTime} - {barber.endTime}</Text>{barber.pauseStartTime && barber.pauseEndTime ? <><Text className="text-neutral-400 text-xs mt-3">BREAK</Text><Text className="text-white font-bold mt-1">{barber.pauseStartTime} - {barber.pauseEndTime}</Text></> : null}<Text className="text-neutral-400 text-xs mt-4">LOCATION</Text><Text className="text-white font-bold mt-1">{barber.location}</Text><TouchableOpacity onPress={() => setShowProfileEditor(true)} className="border border-[#FFD60A] rounded-xl py-3 mt-4"><Text className="text-[#FFD60A] text-center font-bold">Edit shop profile</Text></TouchableOpacity></View>

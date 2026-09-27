@@ -187,7 +187,7 @@ export default function Index() {
           {[
             { label: "Book a cut", icon: "content-cut", route: "/(tabs)/search" },
             { label: "Saved", icon: "bookmark-border", route: "/(tabs)/favorites" },
-            { label: "Bookings", icon: "event", route: "/(tabs)/profile" },
+            { label: "Bookings", icon: "event", route: "/(tabs)/booking" },
           ].map((action) => (
             <TouchableOpacity
               key={action.label}

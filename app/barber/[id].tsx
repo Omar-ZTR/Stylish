@@ -14,7 +14,7 @@ export default function BarberProfile() {
     if (id) api.getBarber(id).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
   }, [id]);
 
-  const [tab, setTab] = useState<"about" | "news" | "services" | "packs">("about");
+  const [tab, setTab] = useState<"about" | "gallery" | "services" | "packs">("about");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [dateIndex, setDateIndex] = useState(0);
@@ -41,21 +41,48 @@ export default function BarberProfile() {
 
   const times = ["09:00", "10:00", "11:00", "13:00", "15:00", "17:00"];
 
-  // mock news items (could be fetched later)
-  const news = [
+  const galleryPosts = [
     {
-      id: "n1",
+      id: "g1",
       title: "Fresh fade styles this week",
-      excerpt: "New fade techniques and discounts on student cuts.",
+      caption: "New fade techniques and discounts on student cuts.",
       image: "https://picsum.photos/600/400?random=21",
       date: "2 days ago",
     },
     {
-      id: "n2",
-      title: "Beard-care tips",
-      excerpt: "Learn the daily routine to keep your beard sharp.",
+      id: "g2",
+      title: "Beard-care routine",
+      caption: "Learn the routine to keep your beard sharp.",
       image: "https://picsum.photos/600/400?random=22",
       date: "1 week ago",
+    },
+    {
+      id: "g3",
+      title: "Client result",
+      caption: "Clean lines and a tailored finish.",
+      image: "https://picsum.photos/600/400?random=23",
+      date: "3 days ago",
+    },
+    {
+      id: "g4",
+      title: "Studio mood",
+      caption: "A modern look with attention to detail.",
+      image: "https://picsum.photos/600/400?random=24",
+      date: "5 days ago",
+    },
+    {
+      id: "g5",
+      title: "Detail work",
+      caption: "Precision shaping for a sharp silhouette.",
+      image: "https://picsum.photos/600/400?random=25",
+      date: "1 week ago",
+    },
+    {
+      id: "g6",
+      title: "New collection",
+      caption: "Fresh styles for the season.",
+      image: "https://picsum.photos/600/400?random=26",
+      date: "2 weeks ago",
     },
   ];
 
@@ -100,8 +127,8 @@ export default function BarberProfile() {
           <TouchableOpacity onPress={() => setTab("about")} className={`flex-1 items-center py-2 rounded-full ${tab === "about" ? "bg-[#FFD60A]" : ""}`}>
             <Text className={`${tab === "about" ? "text-dark font-bold" : "text-neutral-300"}`}>About</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setTab("news")} className={`flex-1 items-center py-2 rounded-full ${tab === "news" ? "bg-[#FFD60A]" : ""}`}>
-            <Text className={`${tab === "news" ? "text-dark font-bold" : "text-neutral-300"}`}>Actualité</Text>
+          <TouchableOpacity onPress={() => setTab("gallery")} className={`flex-1 items-center py-2 rounded-full ${tab === "gallery" ? "bg-[#FFD60A]" : ""}`}>
+            <Text className={`${tab === "gallery" ? "text-dark font-bold" : "text-neutral-300"}`}>Gallery</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setTab("services")} className={`flex-1 items-center py-2 rounded-full ${tab === "services" ? "bg-[#FFD60A]" : ""}`}>
             <Text className={`${tab === "services" ? "text-dark font-bold" : "text-neutral-300"}`}>Services</Text>
@@ -117,18 +144,28 @@ export default function BarberProfile() {
             </View>
           )}
 
-          {tab === "news" && (
+          {tab === "gallery" && (
             <View className="space-y-4">
-              {news.map((n) => (
-                <View key={n.id} className="bg-neutral-900 rounded-md overflow-hidden border border-neutral-800">
-                  <Image source={{ uri: n.image }} className="w-full h-40" resizeMode="cover" />
-                  <View className="p-3">
-                    <Text className="text-base font-PlayfairB text-white">{n.title}</Text>
-                    <Text className="text-sm text-neutral-300 mt-1">{n.excerpt}</Text>
-                    <Text className="text-xs text-neutral-500 mt-2">{n.date}</Text>
-                  </View>
+              <View className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-800">
+                <Image source={{ uri: galleryPosts[0].image }} className="w-full h-56" resizeMode="cover" />
+                <View className="p-3">
+                  <Text className="text-base font-PlayfairB text-white">{galleryPosts[0].title}</Text>
+                  <Text className="text-sm text-neutral-300 mt-1">{galleryPosts[0].caption}</Text>
+                  <Text className="text-xs text-neutral-500 mt-2">{galleryPosts[0].date}</Text>
                 </View>
-              ))}
+              </View>
+
+              <View className="flex-row flex-wrap justify-between">
+                {galleryPosts.slice(1).map((post) => (
+                  <TouchableOpacity key={post.id} className="w-[48%] mb-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
+                    <Image source={{ uri: post.image }} className="w-full h-32" resizeMode="cover" />
+                    <View className="p-2">
+                      <Text className="text-xs text-white font-semibold" numberOfLines={1}>{post.title}</Text>
+                      <Text className="text-[10px] text-neutral-500 mt-1">{post.date}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 

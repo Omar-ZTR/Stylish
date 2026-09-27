@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { api, type Booking } from '@/src/lib/api';
+import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { api, Barber, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
 import '../global.css';
 
@@ -19,7 +19,10 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet'>('info');
   const { user: authUser, logout } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
+    const [barber, setBarber] = useState<Barber | null>(null);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
+ const [postDraft, setPostDraft] = useState({ status: "", mediaUrl: "", mediaType: "image" as "image" | "video" });
+  const [posts, setPosts] = useState<Array<{ id: string; author: string; status: string; mediaUrl?: string; mediaType: "image" | "video"; createdAt: string }>>([]);
 
 
   useEffect(() => {
@@ -41,7 +44,43 @@ const Profile = () => {
     memberSince: authUser ? new Date(authUser.createdAt).toLocaleDateString() : '',
     totalBookings: bookings.length,
   };
+  useEffect(() => {
+    if (!barber) return;
 
+    setPosts((current) => {
+      if (current.length > 0) return current;
+      return [
+        {
+          id: "welcome-post",
+          author: barber.name,
+          status: "Fresh cuts, sharp fades, and clean lines. Book your next session today.",
+          mediaUrl: barber.logoUrl,
+          mediaType: "image",
+          createdAt: "Today • 9:30 AM",
+        },
+      ];
+    });
+  }, [barber]);
+
+  const createPost = () => {
+    const status = postDraft.status.trim();
+    if (!status && !postDraft.mediaUrl.trim()) {
+      Alert.alert("Missing post", "Write a status or add a photo/video link before posting.");
+      return;
+    }
+
+    const newPost = {
+      id: `${Date.now()}`,
+      author: barber?.name ?? "Your Studio",
+      status,
+      mediaUrl: postDraft.mediaUrl.trim() || undefined,
+      mediaType: postDraft.mediaType,
+      createdAt: "Just now",
+    };
+
+    setPosts((current) => [newPost, ...current]);
+    setPostDraft({ status: "", mediaUrl: "", mediaType: "image" });
+  };
   const bookingHistory: BookingHistory[] = bookings.map((booking) => ({
     id: booking.id,
     barber: barberNames[booking.barberId] ?? 'Barber',
@@ -174,8 +213,79 @@ const Profile = () => {
       {/* Tab Content */}
       <View className="p-4">
         {/* Info Tab */}
+
         {activeTab === 'info' && (
           <View className="space-y-4">
+            <View className="bg-neutral-900 rounded-2xl border border-neutral-800 p-4 mb-5">
+          <Text className="text-white text-xl font-PlayfairB mb-3">Activity</Text>
+
+          <View className="bg-black/20 rounded-2xl border border-neutral-700 p-3">
+            <TextInput
+              className="text-white text-base"
+              placeholder="Share a status update with your clients..."
+              placeholderTextColor="#9ca3af"
+              multiline
+              value={postDraft.status}
+              onChangeText={(status) => setPostDraft((current) => ({ ...current, status }))}
+            />
+
+            <View className="flex-row gap-2 mt-3">
+              <TouchableOpacity
+                onPress={() => setPostDraft((current) => ({ ...current, mediaType: "image" }))}
+                className={`flex-1 rounded-xl border px-3 py-2 ${postDraft.mediaType === "image" ? "border-[#FFD60A] bg-[#FFD60A]/10" : "border-neutral-700 bg-neutral-800"}`}
+              >
+                <Text className={`text-center text-sm font-semibold ${postDraft.mediaType === "image" ? "text-[#FFD60A]" : "text-neutral-300"}`}>
+                  Photo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setPostDraft((current) => ({ ...current, mediaType: "video" }))}
+                className={`flex-1 rounded-xl border px-3 py-2 ${postDraft.mediaType === "video" ? "border-[#FFD60A] bg-[#FFD60A]/10" : "border-neutral-700 bg-neutral-800"}`}
+              >
+                <Text className={`text-center text-sm font-semibold ${postDraft.mediaType === "video" ? "text-[#FFD60A]" : "text-neutral-300"}`}>
+                  Video
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              className="text-white text-sm mt-3"
+              placeholder={postDraft.mediaType === "video" ? "Paste video URL..." : "Paste image URL..."}
+              placeholderTextColor="#9ca3af"
+              value={postDraft.mediaUrl}
+              onChangeText={(mediaUrl) => setPostDraft((current) => ({ ...current, mediaUrl }))}
+            />
+
+            <TouchableOpacity onPress={createPost} className="bg-[#FFD60A] rounded-xl py-3 mt-4">
+              <Text className="text-black text-center font-bold">Post update</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text className="text-white text-xl font-PlayfairB mb-3">Latest posts</Text>
+        {posts.map((post) => (
+          <View key={post.id} className="bg-neutral-900 rounded-2xl border border-neutral-800 p-4 mb-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-white font-bold">{post.author}</Text>
+              <Text className="text-neutral-500 text-xs">{post.createdAt}</Text>
+            </View>
+
+            {post.status ? <Text className="text-neutral-200 mt-3">{post.status}</Text> : null}
+
+            {post.mediaUrl ? (
+              post.mediaType === "video" ? (
+                <View className="mt-3 bg-neutral-800 rounded-xl p-3 items-center justify-center">
+                  <MaterialIcons name="videocam" size={28} color="#FFD60A" />
+                  <Text className="text-neutral-300 text-xs mt-2">Video post</Text>
+                  <Text className="text-neutral-500 text-[10px] mt-1">{post.mediaUrl}</Text>
+                </View>
+              ) : (
+                <Image source={{ uri: post.mediaUrl }} className="w-full h-52 rounded-xl mt-3" resizeMode="cover" />
+              )
+            ) : null}
+          </View>
+        ))}
             <View className="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
               <View className="flex-row items-center mb-3">
                 <MaterialIcons name="email" size={20} color="#FFD60A" />

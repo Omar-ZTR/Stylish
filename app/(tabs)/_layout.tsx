@@ -14,7 +14,7 @@ const Layout = () => {
   const { user } = useAuth()
   const isBarber = user?.role === "barber"
   const segments = useSegments()
-  const tabRoutes = ["index", "search", "favorites", "notifications", "profile"] as const
+  const tabRoutes = ["index", "search", "booking", "favorites", "profile"] as const
   const lastSegment = segments[segments.length - 1]
   const currentTab = lastSegment === "(tabs)" ? "index" : lastSegment ?? "index"
 
@@ -45,7 +45,7 @@ const Layout = () => {
        screenOptions={({ route }) => ({
          headerShown: true,
          header: () => {
-           const isSettings = route.name === "settings"
+           const isSettingsOrNotifications = route.name === "settings" || route.name === "notifications"
            return (
           <LinearGradient
             colors={["#1a1a1a", "#0f0f0f"] as const}
@@ -54,7 +54,7 @@ const Layout = () => {
             className="border-b border-gray-800"
           >
             <View className="flex-row items-center justify-between px-6 py-4 mt-4">
-              {isSettings ? (
+              {isSettingsOrNotifications ? (
                 <TouchableOpacity
                   onPress={() => router.back()}
                   className="p-2"
@@ -70,9 +70,9 @@ const Layout = () => {
                   Stylish
                 </Text>
               )}
-              <View className="flex-row items-center">
-                <TouchableOpacity onPress={() => router.push("/notifications")} className="p-2" activeOpacity={0.7}>
-                  <Ionicons name="notifications-outline" size={25} color="#f59e0b" />
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity onPress={() => router.push("/(tabs)/notifications")} className="p-2" activeOpacity={0.7}>
+                  <Ionicons name="notifications-outline" size={24} color="#f59e0b" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.push("/(tabs)/settings")} className="p-2" activeOpacity={0.7}>
                   <Ionicons name="menu" size={28} color="#f59e0b" />
@@ -86,9 +86,9 @@ const Layout = () => {
           const iconName =
             route.name === "index" ? "home" :
             route.name === "search" ? "search" :
+            route.name === "booking" ? "calendar" :
             route.name === "profile" ? "person" :
             route.name === "favorites" ? (isBarber ? "cut" : "bookmark") :
-            route.name === "notifications" ? (isBarber ? "calendar" : "notifications") :
             "ellipse";
            return (
             <Ionicons 
@@ -118,9 +118,10 @@ const Layout = () => {
      >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="search" options={{ title: "Search" }} />
+      <Tabs.Screen name="booking" options={{ title: "Booking" }} />
       <Tabs.Screen name="favorites" options={{ title: isBarber ? "Services" : "Saved" }} />
-      <Tabs.Screen name="notifications" options={{ title: isBarber ? "Bookings" : "Updates" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen name="notifications" options={{ title: "Notifications", href: null }} />
       <Tabs.Screen name="settings" options={{ title: "Settings", href: null }} />
        </Tabs></View>
      </GestureDetector>
