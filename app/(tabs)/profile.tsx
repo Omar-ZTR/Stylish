@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { api, Barber, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
 import '../global.css';
@@ -16,12 +17,12 @@ interface BookingHistory {
 }
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet' | 'gallery'>('info');
   const { user: authUser, logout } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
     const [barber, setBarber] = useState<Barber | null>(null);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
- const [postDraft, setPostDraft] = useState({ status: "", mediaUrl: "", mediaType: "image" as "image" | "video" });
+  const [showPostOptions, setShowPostOptions] = useState(false);
   const [posts, setPosts] = useState<Array<{ id: string; author: string; status: string; mediaUrl?: string; mediaType: "image" | "video"; createdAt: string }>>([]);
 
 
@@ -62,24 +63,34 @@ const Profile = () => {
     });
   }, [barber]);
 
-  const createPost = () => {
-    const status = postDraft.status.trim();
-    if (!status && !postDraft.mediaUrl.trim()) {
-      Alert.alert("Missing post", "Write a status or add a photo/video link before posting.");
-      return;
-    }
-
+  const createPost = (mediaUrl: string, mediaType: "image" | "video") => {
     const newPost = {
       id: `${Date.now()}`,
       author: barber?.name ?? "Your Studio",
-      status,
-      mediaUrl: postDraft.mediaUrl.trim() || undefined,
-      mediaType: postDraft.mediaType,
+      status: "",
+      mediaUrl,
+      mediaType,
       createdAt: "Just now",
     };
 
     setPosts((current) => [newPost, ...current]);
-    setPostDraft({ status: "", mediaUrl: "", mediaType: "image" });
+  };
+
+  const selectPostMedia = async (source: 'camera' | 'library', mediaType: 'image' | 'video') => {
+    setShowPostOptions(false);
+
+    try {
+      const mediaTypes: ImagePicker.MediaType[] = mediaType === 'image' ? ['images'] : ['videos'];
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes, quality: 0.85 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: 0.85 });
+
+      if (!result.canceled && result.assets[0]) {
+        createPost(result.assets[0].uri, mediaType);
+      }
+    } catch {
+      Alert.alert('Unable to open media', 'Check camera or photo library permissions and try again.');
+    }
   };
   const bookingHistory: BookingHistory[] = bookings.map((booking) => ({
     id: booking.id,
@@ -208,6 +219,17 @@ const Profile = () => {
             Wallet
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('gallery')}
+          className={`flex-1 py-4 border-b-2 ${activeTab === 'gallery' ? 'border-[#FFD60A]' : 'border-transparent'}`}
+        >
+          <View className="items-center">
+            <MaterialIcons name="photo-library" size={18} color={activeTab === 'gallery' ? '#FFD60A' : '#a3a3a3'} />
+            <Text className={`text-center font-semibold ${activeTab === 'gallery' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>
+              Gallery
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Tab Content */}
@@ -216,76 +238,6 @@ const Profile = () => {
 
         {activeTab === 'info' && (
           <View className="space-y-4">
-            <View className="bg-neutral-900 rounded-2xl border border-neutral-800 p-4 mb-5">
-          <Text className="text-white text-xl font-PlayfairB mb-3">Activity</Text>
-
-          <View className="bg-black/20 rounded-2xl border border-neutral-700 p-3">
-            <TextInput
-              className="text-white text-base"
-              placeholder="Share a status update with your clients..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              value={postDraft.status}
-              onChangeText={(status) => setPostDraft((current) => ({ ...current, status }))}
-            />
-
-            <View className="flex-row gap-2 mt-3">
-              <TouchableOpacity
-                onPress={() => setPostDraft((current) => ({ ...current, mediaType: "image" }))}
-                className={`flex-1 rounded-xl border px-3 py-2 ${postDraft.mediaType === "image" ? "border-[#FFD60A] bg-[#FFD60A]/10" : "border-neutral-700 bg-neutral-800"}`}
-              >
-                <Text className={`text-center text-sm font-semibold ${postDraft.mediaType === "image" ? "text-[#FFD60A]" : "text-neutral-300"}`}>
-                  Photo
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setPostDraft((current) => ({ ...current, mediaType: "video" }))}
-                className={`flex-1 rounded-xl border px-3 py-2 ${postDraft.mediaType === "video" ? "border-[#FFD60A] bg-[#FFD60A]/10" : "border-neutral-700 bg-neutral-800"}`}
-              >
-                <Text className={`text-center text-sm font-semibold ${postDraft.mediaType === "video" ? "text-[#FFD60A]" : "text-neutral-300"}`}>
-                  Video
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              className="text-white text-sm mt-3"
-              placeholder={postDraft.mediaType === "video" ? "Paste video URL..." : "Paste image URL..."}
-              placeholderTextColor="#9ca3af"
-              value={postDraft.mediaUrl}
-              onChangeText={(mediaUrl) => setPostDraft((current) => ({ ...current, mediaUrl }))}
-            />
-
-            <TouchableOpacity onPress={createPost} className="bg-[#FFD60A] rounded-xl py-3 mt-4">
-              <Text className="text-black text-center font-bold">Post update</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Text className="text-white text-xl font-PlayfairB mb-3">Latest posts</Text>
-        {posts.map((post) => (
-          <View key={post.id} className="bg-neutral-900 rounded-2xl border border-neutral-800 p-4 mb-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-white font-bold">{post.author}</Text>
-              <Text className="text-neutral-500 text-xs">{post.createdAt}</Text>
-            </View>
-
-            {post.status ? <Text className="text-neutral-200 mt-3">{post.status}</Text> : null}
-
-            {post.mediaUrl ? (
-              post.mediaType === "video" ? (
-                <View className="mt-3 bg-neutral-800 rounded-xl p-3 items-center justify-center">
-                  <MaterialIcons name="videocam" size={28} color="#FFD60A" />
-                  <Text className="text-neutral-300 text-xs mt-2">Video post</Text>
-                  <Text className="text-neutral-500 text-[10px] mt-1">{post.mediaUrl}</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: post.mediaUrl }} className="w-full h-52 rounded-xl mt-3" resizeMode="cover" />
-              )
-            ) : null}
-          </View>
-        ))}
             <View className="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
               <View className="flex-row items-center mb-3">
                 <MaterialIcons name="email" size={20} color="#FFD60A" />
@@ -317,6 +269,97 @@ const Profile = () => {
             <TouchableOpacity onPress={logout} className="bg-red-600/20 border border-red-600 rounded-xl py-4">
               <Text className="text-red-500 text-center font-bold">Logout</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {activeTab === 'gallery' && (
+          <View>
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white text-xl font-PlayfairB">Gallery</Text>
+              <Text className="text-neutral-400 text-sm">{posts.length} posts</Text>
+            </View>
+
+            <View className="mb-5">
+              <TouchableOpacity
+                onPress={() => setShowPostOptions(true)}
+                className="flex-row items-center justify-center gap-2 bg-[#FFD60A] rounded-xl py-4"
+              >
+                <MaterialIcons name="add-a-photo" size={21} color="#000" />
+                <Text className="text-black text-center font-bold">Share a post</Text>
+              </TouchableOpacity>
+            </View>
+
+            {posts.length > 0 ? (
+              <View className="flex-row flex-wrap justify-between">
+                {posts.map((post) => (
+                  <View key={post.id} className="w-[48%] mb-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
+                    {post.mediaUrl ? (
+                      post.mediaType === 'video' ? (
+                        <View className="h-36 items-center justify-center bg-neutral-800 px-2">
+                          <MaterialIcons name="play-circle-filled" size={42} color="#FFD60A" />
+                          <Text className="text-neutral-300 text-xs mt-2">Video</Text>
+                          <Text className="text-neutral-500 text-[10px] mt-1" numberOfLines={1}>{post.mediaUrl}</Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: post.mediaUrl }} className="w-full h-36" resizeMode="cover" />
+                      )
+                    ) : (
+                      <View className="h-36 items-center justify-center bg-neutral-800 p-3">
+                        <MaterialIcons name="notes" size={28} color="#FFD60A" />
+                        <Text className="text-neutral-300 text-xs mt-2" numberOfLines={4}>{post.status}</Text>
+                      </View>
+                    )}
+                    <View className="p-3">
+                      <Text className="text-white text-sm font-semibold" numberOfLines={2}>{post.status || post.author}</Text>
+                      <Text className="text-neutral-500 text-xs mt-2">{post.createdAt}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View className="items-center justify-center py-10">
+                <MaterialIcons name="photo-library" size={42} color="#737373" />
+                <Text className="text-neutral-400 text-center mt-3">Photos and videos will appear here.</Text>
+              </View>
+            )}
+
+            <Modal
+              visible={showPostOptions}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowPostOptions(false)}
+            >
+              <View className="flex-1 justify-end bg-black/70">
+                <TouchableOpacity
+                  className="absolute inset-0"
+                  activeOpacity={1}
+                  onPress={() => setShowPostOptions(false)}
+                />
+                <View className="bg-neutral-900 rounded-t-2xl border-t border-neutral-700 p-5">
+                  <Text className="text-white text-lg font-PlayfairB mb-4">Share a post</Text>
+                  <View className="flex-row flex-wrap justify-between">
+                    {[
+                      { label: 'Take photo', icon: 'photo-camera', source: 'camera', mediaType: 'image' },
+                      { label: 'Record video', icon: 'videocam', source: 'camera', mediaType: 'video' },
+                      { label: 'Choose photo', icon: 'photo-library', source: 'library', mediaType: 'image' },
+                      { label: 'Choose video', icon: 'video-library', source: 'library', mediaType: 'video' },
+                    ].map((option) => (
+                      <TouchableOpacity
+                        key={option.label}
+                        onPress={() => void selectPostMedia(option.source as 'camera' | 'library', option.mediaType as 'image' | 'video')}
+                        className="w-[48%] flex-row items-center bg-neutral-800 rounded-lg border border-neutral-700 p-3 mb-3"
+                      >
+                        <MaterialIcons name={option.icon as keyof typeof MaterialIcons.glyphMap} size={22} color="#FFD60A" />
+                        <Text className="text-white text-sm font-semibold ml-2">{option.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => setShowPostOptions(false)} className="py-3 mt-1">
+                    <Text className="text-neutral-300 text-center font-semibold">Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
           </View>
         )}
 
