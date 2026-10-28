@@ -33,7 +33,7 @@ const notifications = [
 export default function NotificationsScreen() {
   return (
     <LinearGradient colors={["#0f172a", "#111827", "#0f172a"]} style={styles.gradient}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.headerWrap}>
             <Text style={styles.headerTitle}>Notifications</Text>

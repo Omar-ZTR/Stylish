@@ -4,11 +4,12 @@ import {
   Bell,
   ChevronRight,
   HelpCircle,
-  Lock,
   LogOut,
   Mail,
   Moon,
+  Phone,
   Shield,
+  UserRound,
 } from "lucide-react-native";
 import { type ComponentType, useState } from "react";
 import {
@@ -69,7 +70,7 @@ function SettingItem({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const isDark = useColorScheme() === "dark";
   const gradientColors: readonly [string, string, string] = isDark ? ["#0f172a", "#1e293b", "#1a1a2e"] : ["#f8fafc", "#e2e8f0", "#dbeafe"];
   const textPrimary = isDark ? "#FFFFFF" : "#0F172A";
@@ -96,7 +97,7 @@ export default function SettingsScreen() {
 
   return (
     <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
           <View style={styles.headerWrap}>
             <Text style={[styles.headerTitle, { color: textPrimary, fontFamily: "PlayfairB" }]}>Settings</Text>
@@ -105,8 +106,32 @@ export default function SettingsScreen() {
 
           <View style={styles.sectionWrap}>
             <Text style={[styles.sectionTitle, { color: textPrimary }]}>ACCOUNT</Text>
-            <SettingItem icon={Mail} label="Email Address" value="user@example.com" onPress={() => {}} cardClass={cardBackground} />
-            <SettingItem icon={Lock} label="Change Password" value="Last changed 2 months ago" onPress={() => {}} cardClass={cardBackground} />
+            <View style={[styles.accountCard, { backgroundColor: cardBackground, borderColor: cardBorder }]}>
+              <View style={styles.accountIdentity}>
+                <View style={styles.accountAvatar}>
+                  <UserRound size={25} color="#111827" strokeWidth={1.8} />
+                </View>
+                <View style={styles.accountIdentityText}>
+                  <Text style={[styles.accountName, { color: textPrimary }]} numberOfLines={1}>{user?.fullName ?? "Stylish member"}</Text>
+                  <Text style={styles.accountRole}>{user?.role === "barber" ? "BARBER ACCOUNT" : "CUSTOMER ACCOUNT"}</Text>
+                </View>
+              </View>
+              <View style={[styles.accountDivider, { borderColor: cardBorder }]} />
+              <View style={styles.accountDetailRow}>
+                <Mail size={18} color="#f59e0b" strokeWidth={1.7} />
+                <View style={styles.accountDetailText}>
+                  <Text style={styles.accountDetailLabel}>EMAIL ADDRESS</Text>
+                  <Text style={[styles.accountDetailValue, { color: textPrimary }]}>{user?.email ?? "Not provided"}</Text>
+                </View>
+              </View>
+              <View style={styles.accountDetailRow}>
+                <Phone size={18} color="#f59e0b" strokeWidth={1.7} />
+                <View style={styles.accountDetailText}>
+                  <Text style={styles.accountDetailLabel}>PHONE NUMBER</Text>
+                  <Text style={[styles.accountDetailValue, { color: textPrimary }]}>{user?.phone ?? "Not provided"}</Text>
+                </View>
+              </View>
+            </View>
           </View>
 
           <View style={styles.sectionWrap}>
@@ -155,6 +180,17 @@ const styles = StyleSheet.create({
   settingTextWrap: { flex: 1, marginLeft: 14 },
   settingLabel: { fontSize: 16, fontWeight: "700" },
   settingValue: { color: "#9CA3AF", fontSize: 12, marginTop: 4 },
+  accountCard: { borderRadius: 18, borderWidth: 1, padding: 18 },
+  accountIdentity: { flexDirection: "row", alignItems: "center" },
+  accountAvatar: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#f59e0b", alignItems: "center", justifyContent: "center" },
+  accountIdentityText: { flex: 1, marginLeft: 14 },
+  accountName: { fontSize: 18, fontWeight: "700" },
+  accountRole: { color: "#f59e0b", fontSize: 10, fontWeight: "700", letterSpacing: 1, marginTop: 5 },
+  accountDivider: { borderTopWidth: 1, marginVertical: 18 },
+  accountDetailRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  accountDetailText: { flex: 1, marginLeft: 12 },
+  accountDetailLabel: { color: "#9CA3AF", fontSize: 10, fontWeight: "700", letterSpacing: 0.8 },
+  accountDetailValue: { fontSize: 14, marginTop: 4 },
   logoutWrap: { marginBottom: 24 },
   footer: { borderTopWidth: 1, borderTopColor: "rgba(75,85,99,0.8)", paddingTop: 16, alignItems: "center" },
   footerText: { color: "#9CA3AF", fontSize: 12, marginBottom: 6 },

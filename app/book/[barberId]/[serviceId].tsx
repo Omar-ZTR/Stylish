@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import TimeWheelPicker from "@/src/components/booking/TimeWheelPicker";
 import { api, type Barber } from "@/src/lib/api";
 import "../../global.css";
 
@@ -17,7 +18,7 @@ export default function Booking() {
   const service = useMemo(() => barber?.services.find((s) => s.id === serviceId), [barber, serviceId]);
 
   const [dateIndex, setDateIndex] = useState(0);
-  const [timeIndex, setTimeIndex] = useState(0);
+  const [selectedTime, setSelectedTime] = useState("09:00");
 
   const dates = useMemo(() => {
     const arr = [] as string[];
@@ -29,8 +30,6 @@ export default function Booking() {
     }
     return arr;
   }, []);
-
-  const times = ["09:00", "10:00", "11:00", "13:00", "15:00", "17:00"];
 
   if (!barber || !service) {
     return (
@@ -45,7 +44,7 @@ export default function Booking() {
 
   async function confirm() {
     try {
-      await api.createBooking({ barberId: selectedBarber.id, serviceIds: [selectedService.id], bookingDate: dates[dateIndex], startTime: times[timeIndex] });
+      await api.createBooking({ barberId: selectedBarber.id, serviceIds: [selectedService.id], bookingDate: dates[dateIndex], startTime: selectedTime });
       Alert.alert("Booking confirmed", `You booked ${selectedService.name} at ${selectedBarber.name}.`);
       router.replace("/(tabs)/profile");
     } catch (error) {
@@ -79,12 +78,8 @@ export default function Booking() {
         </View>
 
         <Text className="text-sm text-neutral-300 mt-2 mb-2">Choose time</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {times.map((t, i) => (
-            <TouchableOpacity key={t} onPress={() => setTimeIndex(i)} className={`px-3 py-2 rounded-md ${timeIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-              <Text className={`${timeIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{t}</Text>
-            </TouchableOpacity>
-          ))}
+        <View className="mb-4">
+          <TimeWheelPicker value={selectedTime} onConfirm={setSelectedTime} />
         </View>
 
         <TouchableOpacity onPress={confirm} className="w-full bg-[#FFD60A] py-3 rounded-md items-center mt-2">

@@ -107,6 +107,7 @@ export const api = {
     return request<{ barbers: Barber[] }>(`/api/barbers${query.toString() ? `?${query}` : ""}`);
   },
   getBarber: (id: string) => request<{ barber: Barber }>(`/api/barbers/${id}`),
+  getBarberFollowerCount: (id: string) => request<{ followers: number }>(`/api/barbers/${id}/followers`),
   getMyBarber: () => request<{ barber: Barber }>('/api/barbers/mine'),
   updateMyBarber: (data: Pick<Barber, 'name' | 'location' | 'startTime' | 'endTime' | 'pauseStartTime' | 'pauseEndTime' | 'autoAcceptBookings'>) =>
     request<{ barber: Barber }>('/api/barbers/mine', { method: 'PATCH', body: JSON.stringify(data) }),

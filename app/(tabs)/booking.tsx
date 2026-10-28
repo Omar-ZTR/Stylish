@@ -3,6 +3,7 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
+import BarberBookings from '@/src/components/BarberBookings';
 import '../global.css';
 
 interface BookingSummary {
@@ -15,8 +16,7 @@ interface BookingSummary {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-const BookingTab = () => {
-  const { user: authUser } = useAuth();
+const CustomerBookingTab = ({ userId }: { userId?: string }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
 
@@ -40,7 +40,7 @@ const BookingTab = () => {
     };
 
     loadBookings();
-  }, [authUser?.id]);
+  }, [userId]);
 
   const bookingSummaries = useMemo<BookingSummary[]>(() => {
     return bookings.map((booking) => ({
@@ -153,6 +153,11 @@ const BookingTab = () => {
       </View>
     </ScrollView>
   );
+};
+
+const BookingTab = () => {
+  const { user } = useAuth();
+  return user?.role === 'barber' ? <BarberBookings /> : <CustomerBookingTab userId={user?.id} />;
 };
 
 export default BookingTab;

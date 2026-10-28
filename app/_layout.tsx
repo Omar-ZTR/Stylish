@@ -1,15 +1,17 @@
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
-import { SplashScreen, Stack, useRouter } from "expo-router";
+import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Text, View, useColorScheme } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/src/auth/AuthContext";
 import "./global.css";
 
 function RootLayoutContent() {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const [isSplashReady, setIsSplashReady] = useState(false);
@@ -38,16 +40,17 @@ function RootLayoutContent() {
     }
   }, [fontLoaded, error]);
 
-  // Navigate based on auth state
+  // Redirect only when the current route does not match the auth state.
   useEffect(() => {
-    if (isSplashReady) {
-      if (isLoggedIn) {
-        router.replace("/(tabs)");
-      } else {
-        router.replace("/auth");
-      }
+    if (!isSplashReady) return;
+
+    const firstSegment = segments[0];
+    if (isLoggedIn && (!firstSegment || firstSegment === "auth")) {
+      router.replace("/(tabs)");
+    } else if (!isLoggedIn && firstSegment !== "auth") {
+      router.replace("/auth");
     }
-  }, [isLoggedIn, isSplashReady, router]);
+  }, [isLoggedIn, isSplashReady, router, segments]);
 
   // Show splash screen while loading
   if (!isSplashReady || !fontLoaded) {
@@ -83,6 +86,28 @@ function RootLayoutContent() {
       <Stack.Screen name="auth" options={{ animation: "none" }} />
       <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
       <Stack.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          headerShown: true,
+          headerStyle: { backgroundColor: "#111111" },
+          headerTintColor: "#f59e0b",
+          headerTitleStyle: { fontFamily: "PlayfairB" },
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          headerShown: true,
+          headerStyle: { backgroundColor: "#111111" },
+          headerTintColor: "#f59e0b",
+          headerTitleStyle: { fontFamily: "PlayfairB" },
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name="barber/[id]"
         options={{
           animation: "default",
@@ -110,11 +135,11 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <RootLayoutContent />
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <RootLayoutContent />
+        </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
-
-

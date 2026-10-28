@@ -1,10 +1,14 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Alert, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { api, Barber, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
 import '../global.css';
+
+const createPostId = () => `${Date.now()}`;
 
 interface BookingHistory {
   id: string;
@@ -17,14 +21,16 @@ interface BookingHistory {
 }
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet' | 'gallery'>('info');
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser } = useAuth();
+  const isBarber = authUser?.role === 'barber';
+  const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet' | 'gallery'>(() => isBarber ? 'gallery' : 'wallet');
+  const displayedTab = !isBarber && activeTab === 'gallery' ? 'wallet' : activeTab;
   const [bookings, setBookings] = useState<Booking[]>([]);
-    const [barber, setBarber] = useState<Barber | null>(null);
+  const [socialCount, setSocialCount] = useState(0);
+  const [barber, setBarber] = useState<Barber | null>(null);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
   const [showPostOptions, setShowPostOptions] = useState(false);
-  const [posts, setPosts] = useState<Array<{ id: string; author: string; status: string; mediaUrl?: string; mediaType: "image" | "video"; createdAt: string }>>([]);
-
+  const [posts, setPosts] = useState<{ id: string; author: string; status: string; mediaUrl?: string; mediaType: "image" | "video"; createdAt: string }[]>([]);
 
   useEffect(() => {
     Promise.all([api.getBookings(), api.getBarbers()]).then(([bookingResult, barberResult]) => {
@@ -36,36 +42,53 @@ const Profile = () => {
     });
   }, [authUser?.role]);
 
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const loadSocialCount = async () => {
+      try {
+        if (isBarber) {
+          const { barber: ownBarber } = await api.getMyBarber();
+          if (!active) return;
+          setBarber(ownBarber);
+          const { followers } = await api.getBarberFollowerCount(ownBarber.id);
+          if (active) setSocialCount(followers);
+        } else {
+          const { barbers } = await api.getFavorites();
+          if (active) setSocialCount(barbers.length);
+        }
+      } catch {
+        if (active) setSocialCount(0);
+      }
+    };
+
+    void loadSocialCount();
+    return () => { active = false; };
+  }, [isBarber]));
+
   const user = {
     name: authUser?.fullName ?? 'Stylish customer',
     email: authUser?.email ?? '',
     phone: authUser?.phone ?? 'Not provided',
     location: 'Tunis, Tunisia',
     avatar: 'https://picsum.photos/id/1005/200/200',
-    memberSince: authUser ? new Date(authUser.createdAt).toLocaleDateString() : '',
     totalBookings: bookings.length,
   };
-  useEffect(() => {
-    if (!barber) return;
-
-    setPosts((current) => {
-      if (current.length > 0) return current;
-      return [
-        {
-          id: "welcome-post",
-          author: barber.name,
-          status: "Fresh cuts, sharp fades, and clean lines. Book your next session today.",
-          mediaUrl: barber.logoUrl,
-          mediaType: "image",
-          createdAt: "Today • 9:30 AM",
-        },
-      ];
-    });
-  }, [barber]);
+  const galleryPosts = posts.length > 0
+    ? posts
+    : barber
+      ? [{
+        id: "welcome-post",
+        author: barber.name,
+        status: "Fresh cuts, sharp fades, and clean lines. Book your next session today.",
+        mediaUrl: barber.logoUrl,
+        mediaType: "image" as const,
+        createdAt: "Today • 9:30 AM",
+      }]
+      : [];
 
   const createPost = (mediaUrl: string, mediaType: "image" | "video") => {
     const newPost = {
-      id: `${Date.now()}`,
+      id: createPostId(),
       author: barber?.name ?? "Your Studio",
       status: "",
       mediaUrl,
@@ -144,139 +167,122 @@ const Profile = () => {
   const upcomingBooking = bookingHistory.find(b => b.status === 'upcoming');
 
   return (
-    <ScrollView className="flex-1 bg-background">
-      {/* Header - User Info */}
-      <View className="bg-neutral-900 border-b-2 border-neutral-800 p-6">
-        <View className="items-center">
-          <Image
-            source={{ uri: user.avatar }}
-            className="w-24 h-24 rounded-full border-3 border-[#FFD60A] mb-4"
-          />
-          <Text className="text-white text-2xl font-PlayfairB">{user.name}</Text>
-          <Text className="text-neutral-400 text-sm mt-1">Member since {user.memberSince}</Text>
+    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={['#24220f', '#171717', '#111111']} className="px-5 pt-6 pb-5 border-b border-[#FFD60A]/20">
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-[#FFD60A] text-[11px] font-bold tracking-widest">STYLISH / ACCOUNT</Text>
+            <Text className="text-neutral-400 text-xs mt-1">Your personal space</Text>
+          </View>
+          <View className="flex-row items-center rounded-full border border-[#FFD60A]/30 bg-black/30 px-3 py-2">
+            <MaterialIcons name={isBarber ? 'content-cut' : 'person-outline'} size={15} color="#FFD60A" />
+            <Text className="text-[#FFD60A] text-xs font-bold ml-2">{isBarber ? 'BARBER' : 'MEMBER'}</Text>
+          </View>
         </View>
 
-        {/* Upcoming Booking Alert */}
+        <View className="flex-row items-center mt-7">
+          <View className="w-[76px] h-[76px] rounded-2xl border-2 border-[#FFD60A] p-1 bg-black/40">
+            <Image source={{ uri: user.avatar }} className="w-full h-full rounded-xl" />
+          </View>
+          <View className="flex-1 ml-4">
+            <Text className="text-neutral-400 text-xs">WELCOME BACK</Text>
+            <Text className="text-white text-2xl font-PlayfairB mt-1" numberOfLines={1}>{user.name}</Text>
+            <Text className="text-neutral-400 text-sm mt-1" numberOfLines={1}>{user.email}</Text>
+          </View>
+        </View>
+
+        <View className="flex-row mt-6 pt-4 border-t border-white/10">
+          <View className="flex-1">
+            <Text className="text-[#FFD60A] text-2xl font-PlayfairB">{user.totalBookings}</Text>
+            <Text className="text-neutral-400 text-[11px] mt-1">TOTAL BOOKINGS</Text>
+          </View>
+          <View className="flex-1 border-l border-white/10 pl-5">
+            <Text className="text-[#FFD60A] text-2xl font-PlayfairB">{socialCount}</Text>
+            <Text className="text-neutral-400 text-[11px] mt-1">{isBarber ? 'FOLLOWERS' : 'FOLLOWING'}</Text>
+          </View>
+          {isBarber && (
+            <View className="flex-1 border-l border-white/10 pl-5">
+              <Text className="text-[#FFD60A] text-2xl font-PlayfairB">{galleryPosts.length}</Text>
+              <Text className="text-neutral-400 text-[11px] mt-1">GALLERY POSTS</Text>
+            </View>
+          )}
+        </View>
+
         {upcomingBooking && (
-          <View className="bg-[#FFD60A]/20 border border-[#FFD60A] rounded-xl p-4 mt-6">
-            <View className="flex-row items-center mb-2">
-              <MaterialIcons name="event-note" size={20} color="#FFD60A" />
-              <Text className="text-[#FFD60A] font-bold ml-2">You have an upcoming booking!</Text>
+          <View className="flex-row items-center bg-black/35 border border-[#FFD60A]/30 rounded-xl p-3 mt-5">
+            <View className="w-10 h-10 rounded-lg bg-[#FFD60A]/15 items-center justify-center">
+              <MaterialIcons name="event-available" size={21} color="#FFD60A" />
             </View>
-            <View className="ml-7">
-              <Text className="text-white font-semibold text-sm">{upcomingBooking.barber}</Text>
-              <Text className="text-neutral-300 text-xs mt-1">{upcomingBooking.service}</Text>
-              <View className="flex-row items-center mt-2 gap-2">
-                <MaterialIcons name="access-time" size={14} color="#FFD60A" />
-                <Text className="text-[#FFD60A] text-xs">
-                  {new Date(upcomingBooking.date).toLocaleDateString()} • {upcomingBooking.time}
-                </Text>
-              </View>
+            <View className="flex-1 ml-3">
+              <Text className="text-[#FFD60A] text-[10px] font-bold tracking-wider">NEXT APPOINTMENT</Text>
+              <Text className="text-white font-semibold mt-1" numberOfLines={1}>{upcomingBooking.barber}</Text>
+              <Text className="text-neutral-400 text-xs mt-1">{new Date(upcomingBooking.date).toLocaleDateString()} · {upcomingBooking.time}</Text>
             </View>
+            <MaterialIcons name="chevron-right" size={22} color="#a3a3a3" />
           </View>
         )}
-
-        {/* Quick Stats */}
-        <View className="flex-row justify-around mt-6 bg-black/40 rounded-xl p-4">
-          <View className="items-center">
-            <Text className="text-[#FFD60A] text-2xl font-bold">{user.totalBookings}</Text>
-            <Text className="text-neutral-300 text-xs mt-1">Total Bookings</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-[#FFD60A] text-2xl font-bold">325.50</Text>
-            <Text className="text-neutral-300 text-xs mt-1">Total Spent</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-[#FFD60A] text-2xl font-bold">12</Text>
-            <Text className="text-neutral-300 text-xs mt-1">Saved Barbers</Text>
-          </View>
-        </View>
-      </View>
+      </LinearGradient>
 
       {/* Tab Navigation */}
-      <View className="flex-row bg-neutral-900 border-b border-neutral-800">
-        <TouchableOpacity
+      <View className="flex-row bg-[#141414] border-b border-neutral-800 px-2">
+        {/* <TouchableOpacity
           onPress={() => setActiveTab('info')}
-          className={`flex-1 py-4 border-b-2 ${activeTab === 'info' ? 'border-[#FFD60A]' : 'border-transparent'}`}
+          className={`flex-1 py-3 border-b-2 ${displayedTab === 'info' ? 'border-[#FFD60A]' : 'border-transparent'}`}
         >
-          <Text className={`text-center font-semibold ${activeTab === 'info' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>
-            Info
-          </Text>
+          <View className="items-center"><MaterialIcons name="person-outline" size={18} color={displayedTab === 'info' ? '#FFD60A' : '#737373'} /><Text className={`text-[11px] font-semibold mt-1 ${displayedTab === 'info' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>Profile</Text></View>
+        </TouchableOpacity> */}
+        {isBarber && (
+          <TouchableOpacity
+            onPress={() => setActiveTab('gallery')}
+            className={`flex-1 py-3 border-b-2 ${displayedTab === 'gallery' ? 'border-[#FFD60A]' : 'border-transparent'}`}
+          >
+            <View className="items-center">
+              <MaterialIcons name="photo-library" size={18} color={displayedTab === 'gallery' ? '#FFD60A' : '#737373'} />
+              <Text className={`text-[11px] font-semibold mt-1 ${displayedTab === 'gallery' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>Gallery</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          onPress={() => setActiveTab('wallet')}
+          className={`flex-1 py-3 border-b-2 ${displayedTab === 'wallet' ? 'border-[#FFD60A]' : 'border-transparent'}`}
+        >
+          <View className="items-center"><MaterialIcons name="account-balance-wallet" size={18} color={displayedTab === 'wallet' ? '#FFD60A' : '#737373'} /><Text className={`text-[11px] font-semibold mt-1 ${displayedTab === 'wallet' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>Wallet</Text></View>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab('history')}
-          className={`flex-1 py-4 border-b-2 ${activeTab === 'history' ? 'border-[#FFD60A]' : 'border-transparent'}`}
+          className={`flex-1 py-3 border-b-2 ${displayedTab === 'history' ? 'border-[#FFD60A]' : 'border-transparent'}`}
         >
-          <Text className={`text-center font-semibold ${activeTab === 'history' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>
-            History
-          </Text>
+          <View className="items-center"><MaterialIcons name="history" size={18} color={displayedTab === 'history' ? '#FFD60A' : '#737373'} /><Text className={`text-[11px] font-semibold mt-1 ${displayedTab === 'history' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>History</Text></View>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab('wallet')}
-          className={`flex-1 py-4 border-b-2 ${activeTab === 'wallet' ? 'border-[#FFD60A]' : 'border-transparent'}`}
-        >
-          <Text className={`text-center font-semibold ${activeTab === 'wallet' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>
-            Wallet
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab('gallery')}
-          className={`flex-1 py-4 border-b-2 ${activeTab === 'gallery' ? 'border-[#FFD60A]' : 'border-transparent'}`}
-        >
-          <View className="items-center">
-            <MaterialIcons name="photo-library" size={18} color={activeTab === 'gallery' ? '#FFD60A' : '#a3a3a3'} />
-            <Text className={`text-center font-semibold ${activeTab === 'gallery' ? 'text-[#FFD60A]' : 'text-neutral-400'}`}>
-              Gallery
-            </Text>
-          </View>
-        </TouchableOpacity>
+
       </View>
 
       {/* Tab Content */}
-      <View className="p-4">
+      <View className="px-5 pt-5">
         {/* Info Tab */}
 
-        {activeTab === 'info' && (
-          <View className="space-y-4">
-            <View className="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
-              <View className="flex-row items-center mb-3">
-                <MaterialIcons name="email" size={20} color="#FFD60A" />
-                <Text className="text-neutral-400 text-sm ml-3 flex-1">Email</Text>
-              </View>
-              <Text className="text-white ml-8">{user.email}</Text>
+        {/* {displayedTab === 'info' && (
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.85}
+            className="flex-row items-center bg-neutral-900 rounded-2xl border border-neutral-800 p-4"
+          >
+            <View className="w-12 h-12 rounded-xl bg-[#FFD60A]/15 items-center justify-center">
+              <MaterialIcons name="manage-accounts" size={24} color="#FFD60A" />
             </View>
-
-            <View className="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
-              <View className="flex-row items-center mb-3">
-                <MaterialIcons name="phone" size={20} color="#FFD60A" />
-                <Text className="text-neutral-400 text-sm ml-3 flex-1">Phone</Text>
-              </View>
-              <Text className="text-white ml-8">{user.phone}</Text>
+            <View className="flex-1 ml-4">
+              <Text className="text-white font-bold">Manage account</Text>
+              <Text className="text-neutral-400 text-sm mt-1">Personal details and preferences</Text>
             </View>
+            <MaterialIcons name="chevron-right" size={22} color="#737373" />
+          </TouchableOpacity>
+        )} */}
 
-            <View className="bg-neutral-900 rounded-xl p-4 border border-neutral-800">
-              <View className="flex-row items-center mb-3">
-                <MaterialIcons name="location-on" size={20} color="#FFD60A" />
-                <Text className="text-neutral-400 text-sm ml-3 flex-1">Location</Text>
-              </View>
-              <Text className="text-white ml-8">{user.location}</Text>
-            </View>
-
-            <TouchableOpacity className="bg-[#FFD60A] rounded-xl py-4 mt-6">
-              <Text className="text-black text-center font-bold">Edit Profile</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={logout} className="bg-red-600/20 border border-red-600 rounded-xl py-4">
-              <Text className="text-red-500 text-center font-bold">Logout</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {activeTab === 'gallery' && (
+        {isBarber && displayedTab === 'gallery' && (
           <View>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-white text-xl font-PlayfairB">Gallery</Text>
-              <Text className="text-neutral-400 text-sm">{posts.length} posts</Text>
+              <Text className="text-neutral-400 text-sm">{galleryPosts.length} posts</Text>
             </View>
 
             <View className="mb-5">
@@ -289,9 +295,9 @@ const Profile = () => {
               </TouchableOpacity>
             </View>
 
-            {posts.length > 0 ? (
+            {galleryPosts.length > 0 ? (
               <View className="flex-row flex-wrap justify-between">
-                {posts.map((post) => (
+                {galleryPosts.map((post) => (
                   <View key={post.id} className="w-[48%] mb-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
                     {post.mediaUrl ? (
                       post.mediaType === 'video' ? (
@@ -364,7 +370,7 @@ const Profile = () => {
         )}
 
         {/* History Tab */}
-        {activeTab === 'history' && (
+        {displayedTab === 'history' && (
           <View className="space-y-3">
             {bookingHistory.length > 0 ? (
               bookingHistory.map((booking) => (
@@ -414,22 +420,41 @@ const Profile = () => {
         )}
 
         {/* Wallet Tab */}
-        {activeTab === 'wallet' && (
+        {displayedTab === 'wallet' && (
           <View className="space-y-4">
             {/* Balance Card */}
-            <View className="bg-gradient-to-r from-[#FFD60A] to-yellow-400 rounded-xl p-6">
-              <Text className="text-black text-sm opacity-80 mb-2">Total Balance</Text>
-              <Text className="text-black text-3xl font-PlayfairB">{wallet.balance}</Text>
-              <Text className="text-black/60 text-sm mt-4">Total Spent: {wallet.totalSpent}</Text>
-            </View>
-
-            {/* Add Funds Button */}
-            <TouchableOpacity className="bg-[#FFD60A] rounded-xl py-4">
-              <View className="flex-row items-center justify-center gap-2">
-                <MaterialIcons name="add" size={24} color="#000" />
-                <Text className="text-black text-center font-bold">Add Funds</Text>
+            <LinearGradient colors={['#282516', '#171717', '#101010']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="rounded-2xl border border-[#FFD60A]/35 p-5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 rounded-xl bg-[#FFD60A]/15 items-center justify-center">
+                    <MaterialIcons name="account-balance-wallet" size={21} color="#FFD60A" />
+                  </View>
+                  <View className="ml-3">
+                    <Text className="text-white font-bold">Stylish Wallet</Text>
+                    <Text className="text-neutral-500 text-[10px] tracking-widest mt-1">PERSONAL BALANCE</Text>
+                  </View>
+                </View>
+                <MaterialIcons name="more-horiz" size={24} color="#a3a3a3" />
               </View>
-            </TouchableOpacity>
+
+              <View className="mt-7">
+                <Text className="text-neutral-400 text-xs">Available balance</Text>
+                <Text className="text-white text-4xl font-PlayfairB mt-2">{wallet.balance}</Text>
+              </View>
+
+              <View className="flex-row items-center justify-between border-t border-white/10 mt-6 pt-4">
+                <View>
+                  <Text className="text-neutral-500 text-[10px] tracking-wider">TOTAL SPENT</Text>
+                  <Text className="text-[#FFD60A] text-base font-bold mt-1">{wallet.totalSpent}</Text>
+                </View>
+                <TouchableOpacity activeOpacity={0.8} className="flex-row items-center bg-[#FFD60A] rounded-xl px-4 py-3">
+                  <MaterialIcons name="add" size={19} color="#111" />
+                  <Text className="text-black font-bold ml-1">Add funds</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+
+
 
             {/* Transactions */}
             <View>
@@ -445,9 +470,8 @@ const Profile = () => {
                       <Text className="text-neutral-500 text-xs mt-1">{transaction.date}</Text>
                     </View>
                     <Text
-                      className={`font-bold text-sm ${
-                        transaction.type === 'spent' ? 'text-red-500' : 'text-green-500'
-                      }`}
+                      className={`font-bold text-sm ${transaction.type === 'spent' ? 'text-red-500' : 'text-green-500'
+                        }`}
                     >
                       {transaction.amount}
                     </Text>

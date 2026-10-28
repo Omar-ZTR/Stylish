@@ -1,18 +1,31 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Image, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { api, type Barber } from "@/src/lib/api";
+import { useAuth } from "@/src/auth/AuthContext";
 import { salesPacks } from "@/src/data";
 import "../global.css";
 
 export default function BarberProfile() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const id = params.id as string | undefined;
   const [barber, setBarber] = useState<Barber | null>(null);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
   useEffect(() => {
-    if (id) api.getBarber(id).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
-  }, [id]);
+    if (!id) return;
+    let active = true;
+    api.getBarber(id).then(({ barber: result }) => { if (active) setBarber(result); }).catch(() => { if (active) setBarber(null); });
+    api.getBarberFollowerCount(id).then(({ followers }) => { if (active) setFollowerCount(followers); }).catch(() => {});
+    if (user?.role === "customer") {
+      api.getFavorites().then(({ barbers }) => { if (active) setIsFollowing(barbers.some((item) => item.id === id)); }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [id, user?.id, user?.role]);
 
   const [tab, setTab] = useState<"about" | "gallery" | "services" | "packs">("about");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -87,6 +100,19 @@ export default function BarberProfile() {
   ];
 
   const bio = `${barber.name} is an experienced barber offering premium cuts and grooming services. Friendly vibe and attention to detail.`;
+  const toggleFollow = async () => {
+    if (!id || followPending) return;
+    setFollowPending(true);
+    try {
+      const result = await api.toggleFavorite(id);
+      setIsFollowing(result.saved);
+      setFollowerCount((count) => Math.max(0, count + (result.saved ? 1 : -1)));
+    } catch (error) {
+      Alert.alert("Could not update follow", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setFollowPending(false);
+    }
+  };
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -120,6 +146,22 @@ export default function BarberProfile() {
           </View>
 
           <Text className="text-sm text-neutral-300 mt-4">{bio}</Text>
+          <View className="flex-row items-center justify-between mt-4 pt-4 border-t border-neutral-800">
+            <View>
+              <Text className="text-white font-bold">{followerCount}</Text>
+              <Text className="text-neutral-500 text-xs mt-1">{followerCount === 1 ? "follower" : "followers"}</Text>
+            </View>
+            {user?.role === "customer" && (
+              <TouchableOpacity
+                disabled={followPending}
+                onPress={() => void toggleFollow()}
+                className={`flex-row items-center justify-center rounded-xl px-5 py-3 ${isFollowing ? "border border-[#FFD60A] bg-[#FFD60A]/10" : "bg-[#FFD60A]"}`}
+              >
+                <MaterialIcons name={isFollowing ? "check" : "person-add-alt-1"} size={18} color={isFollowing ? "#FFD60A" : "#111"} />
+                <Text className={`font-bold ml-2 ${isFollowing ? "text-[#FFD60A]" : "text-black"}`}>{followPending ? "Updating..." : isFollowing ? "Following" : "Follow"}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Tabs */}

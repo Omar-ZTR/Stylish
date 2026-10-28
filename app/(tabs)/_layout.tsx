@@ -2,15 +2,15 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { Tabs, useRouter, useSegments } from "expo-router"
 import { StatusBar } from "expo-status-bar"
-import { ArrowLeft } from "lucide-react-native"
 import { Text, TouchableOpacity, View } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import { runOnJS } from "react-native-reanimated"
-import { SafeAreaProvider } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useAuth } from "@/src/auth/AuthContext"
 
-const Layout = () => {
+const LayoutContent = () => {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const isBarber = user?.role === "barber"
   const segments = useSegments()
@@ -37,7 +37,7 @@ const Layout = () => {
     })
 
   return (
-  <SafeAreaProvider>
+  <>
      <StatusBar style="light" />
      <GestureDetector gesture={swipeGesture}>
        <View collapsable={false} style={{ flex: 1 }}>
@@ -45,37 +45,39 @@ const Layout = () => {
        screenOptions={({ route }) => ({
          headerShown: true,
          header: () => {
-           const isSettingsOrNotifications = route.name === "settings" || route.name === "notifications"
            return (
           <LinearGradient
             colors={["#1a1a1a", "#0f0f0f"] as const}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             className="border-b border-gray-800"
-          >
-            <View className="flex-row items-center justify-between px-6 py-4 mt-4">
-              {isSettingsOrNotifications ? (
+             style={{ paddingTop: insets.top }}
+           >
+             <View className="flex-row items-center justify-between px-6 py-4">
+              <Text
+                style={{ fontFamily: "PlayfairB" }}
+                className="text-3xl font-bold text-white"
+              >
+                Stylish
+              </Text>
+              <View className="flex-row items-center gap-2">
                 <TouchableOpacity
-                  onPress={() => router.back()}
+                  onPress={() => router.push("/notifications")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open notifications"
                   className="p-2"
                   activeOpacity={0.7}
                 >
-                  <ArrowLeft size={28} color="#f59e0b" strokeWidth={2} />
-                </TouchableOpacity>
-              ) : (
-                <Text
-                  style={{ fontFamily: "PlayfairB" }}
-                  className="text-3xl font-bold text-white"
-                >
-                  Stylish
-                </Text>
-              )}
-              <View className="flex-row items-center gap-2">
-                <TouchableOpacity onPress={() => router.push("/(tabs)/notifications")} className="p-2" activeOpacity={0.7}>
                   <Ionicons name="notifications-outline" size={24} color="#f59e0b" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/settings")} className="p-2" activeOpacity={0.7}>
-                  <Ionicons name="menu" size={28} color="#f59e0b" />
+                <TouchableOpacity
+                  onPress={() => router.push("/settings")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open settings"
+                  className="p-2"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="settings-outline" size={26} color="#f59e0b" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -94,7 +96,7 @@ const Layout = () => {
             <Ionicons 
               name={iconName as any} 
               size={size} 
-              color={color}
+              color={typeof color === "string" ? color : "#6b7280"}
               style={{ fontWeight: focused ? "bold" : "normal" }}
             />
            );
@@ -105,8 +107,8 @@ const Layout = () => {
           backgroundColor: "#1a1a1a",
           borderTopColor: "#374151",
           borderTopWidth: 1,
-          height: 65,
-          paddingBottom: 8,
+          height: 65 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
          },
          tabBarLabelStyle: {
@@ -121,12 +123,10 @@ const Layout = () => {
       <Tabs.Screen name="booking" options={{ title: "Booking" }} />
       <Tabs.Screen name="favorites" options={{ title: isBarber ? "Services" : "Saved" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
-      <Tabs.Screen name="notifications" options={{ title: "Notifications", href: null }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings", href: null }} />
        </Tabs></View>
      </GestureDetector>
-    </SafeAreaProvider>
+  </>
   )
 }
 
-export default Layout
+export default LayoutContent
