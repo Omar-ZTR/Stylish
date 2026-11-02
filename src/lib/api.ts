@@ -19,9 +19,16 @@ export interface RegistrationData {
     location: string;
     startTime: string;
     endTime: string;
+    operatingDays?: number[];
     pauseStartTime?: string;
     pauseEndTime?: string;
   };
+}
+
+export interface ProfileUpdateData {
+  fullName: string;
+  email: string;
+  phone?: string;
 }
 
 export interface Service {
@@ -40,9 +47,11 @@ export interface Barber {
   logoUrl: string;
   rating: number;
   location: string;
+  description?: string;
   distanceKm: number;
   startTime: string;
   endTime: string;
+  operatingDays?: number[];
   pauseStartTime?: string;
   pauseEndTime?: string;
   autoAcceptBookings?: boolean;
@@ -98,6 +107,8 @@ export const api = {
   login: (email: string, password: string) =>
     request<{ user: User; token: string }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User }>("/api/auth/me"),
+  updateProfile: (data: ProfileUpdateData) =>
+    request<{ user: User }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
   getBarbers: (params: { q?: string; city?: string; maxDistance?: number; minRating?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.q) query.set("q", params.q);
@@ -109,7 +120,7 @@ export const api = {
   getBarber: (id: string) => request<{ barber: Barber }>(`/api/barbers/${id}`),
   getBarberFollowerCount: (id: string) => request<{ followers: number }>(`/api/barbers/${id}/followers`),
   getMyBarber: () => request<{ barber: Barber }>('/api/barbers/mine'),
-  updateMyBarber: (data: Pick<Barber, 'name' | 'location' | 'startTime' | 'endTime' | 'pauseStartTime' | 'pauseEndTime' | 'autoAcceptBookings'>) =>
+  updateMyBarber: (data: Pick<Barber, 'name' | 'location' | 'startTime' | 'endTime' | 'operatingDays' | 'pauseStartTime' | 'pauseEndTime' | 'autoAcceptBookings'>) =>
     request<{ barber: Barber }>('/api/barbers/mine', { method: 'PATCH', body: JSON.stringify(data) }),
   getMyBookings: () => request<{ bookings: Booking[] }>('/api/barbers/mine/bookings'),
   updateMyBooking: (id: string, status: 'confirmed' | 'cancelled') =>
@@ -120,7 +131,7 @@ export const api = {
     request<{ service: Service }>(`/api/barbers/mine/services/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteMyService: (id: string) =>
     request<{ deleted: boolean }>(`/api/barbers/mine/services/${id}`, { method: 'DELETE' }),
-  getAvailability: (id: string, date: string) => request<{ booked: { startTime: string; endTime: string }[]; openingHours: { start: string; end: string; pauseStart?: string; pauseEnd?: string } }>(`/api/barbers/${id}/availability?date=${encodeURIComponent(date)}`),
+  getAvailability: (id: string, date: string) => request<{ date: string; isOpen: boolean; booked: { startTime: string; endTime: string }[]; openingHours: { start: string; end: string; pauseStart?: string; pauseEnd?: string } }>(`/api/barbers/${id}/availability?date=${encodeURIComponent(date)}`),
   getFavorites: () => request<{ barbers: Barber[] }>("/api/favorites"),
   toggleFavorite: (barberId: string) => request<{ saved: boolean }>(`/api/favorites/${barberId}`, { method: "POST" }),
   createBooking: (data: { barberId: string; serviceIds: string[]; bookingDate: string; startTime: string }) =>

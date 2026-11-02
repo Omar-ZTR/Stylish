@@ -27,6 +27,7 @@ interface TimeWheelPickerProps {
   onConfirm: (value: string) => void;
   label?: string;
   compact?: boolean;
+  disabled?: boolean;
 }
 
 interface WheelColumnProps {
@@ -121,7 +122,7 @@ function WheelColumn({ column, values, selectedValue, onValueChange }: WheelColu
   );
 }
 
-export default function TimeWheelPicker({ value, onConfirm, label = "Pick time", compact = false }: TimeWheelPickerProps) {
+export default function TimeWheelPicker({ value, onConfirm, label = "Pick time", compact = false, disabled = false }: TimeWheelPickerProps) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState({ hour: 9, minute: 0 });
@@ -145,8 +146,10 @@ export default function TimeWheelPicker({ value, onConfirm, label = "Pick time",
     <>
       <TouchableOpacity
         onPress={openPicker}
+        disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={`${label}, currently ${value}`}
+        accessibilityState={{ disabled }}
         activeOpacity={0.82}
         className={`flex-row items-center rounded-2xl border border-[#FFBE0B]/35 ${compact ? "justify-center px-2 py-3" : "justify-between px-4 py-3.5"}`}
         style={{ backgroundColor: "rgba(42,35,18,0.72)" }}

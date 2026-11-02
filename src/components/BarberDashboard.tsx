@@ -2,6 +2,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Alert, Image, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import TimeWheelPicker from "@/src/components/booking/TimeWheelPicker";
+import WeekdaySelector from "@/src/components/WeekdaySelector";
+import { ALL_WEEKDAYS } from "@/src/lib/barberSchedule";
 import { api, type Barber, type Service } from "@/src/lib/api";
 
 type ServiceForm = { name: string; durationMinutes: string; price: string; imageUrl?: string };
@@ -24,7 +26,7 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showServiceEditor, setShowServiceEditor] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [profileForm, setProfileForm] = useState({ name: "", location: "", startTime: "09:00", endTime: "19:00", pauseStartTime: "13:00", pauseEndTime: "14:00" });
+  const [profileForm, setProfileForm] = useState({ name: "", location: "", startTime: "09:00", endTime: "19:00", operatingDays: [...ALL_WEEKDAYS], pauseStartTime: "13:00", pauseEndTime: "14:00" });
   const [pauseEnabled, setPauseEnabled] = useState(false);
   const [serviceForm, setServiceForm] = useState<ServiceForm>(emptyService);
 
@@ -38,7 +40,7 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
       } catch {
         setFollowerCount(0);
       }
-      setProfileForm({ name: result.barber.name, location: result.barber.location, startTime: result.barber.startTime, endTime: result.barber.endTime, pauseStartTime: result.barber.pauseStartTime ?? "13:00", pauseEndTime: result.barber.pauseEndTime ?? "14:00" });
+      setProfileForm({ name: result.barber.name, location: result.barber.location, startTime: result.barber.startTime, endTime: result.barber.endTime, operatingDays: result.barber.operatingDays ?? [...ALL_WEEKDAYS], pauseStartTime: result.barber.pauseStartTime ?? "13:00", pauseEndTime: result.barber.pauseEndTime ?? "14:00" });
       setPauseEnabled(Boolean(result.barber.pauseStartTime && result.barber.pauseEndTime));
     } catch (error) {
       Alert.alert("Could not load profile", error instanceof Error ? error.message : "Please try again.");
@@ -255,6 +257,13 @@ export default function BarberDashboard({ onLogout }: { onLogout: () => void }) 
                   {renderTimeField("startTime", "OPENS")}
                   <MaterialIcons name="east" size={18} color="#737373" style={{ marginHorizontal: 12, marginTop: 22 }} />
                   {renderTimeField("endTime", "CLOSES")}
+                </View>
+                <View className="mt-5 border-t border-neutral-800 pt-4">
+                  <WeekdaySelector
+                    days={profileForm.operatingDays}
+                    onChange={(operatingDays) => setProfileForm((current) => ({ ...current, operatingDays }))}
+                    disabled={saving}
+                  />
                 </View>
 
                 <View className="flex-row items-center justify-between mt-5 pt-4 border-t border-neutral-800">

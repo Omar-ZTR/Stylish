@@ -8,13 +8,17 @@ import {
     ScrollView,
     Text,
     TouchableOpacity,
-    View
+    View,
+    useWindowDimensions,
 } from "react-native";
+import BarberProfileCard from "@/src/components/BarberProfileCard";
 import { api, type Barber } from "@/src/lib/api";
 import { news, salesPacks, stories } from "@/src/data";
 import "../global.css";
 export default function Index() {
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+  const barberCardWidth = Math.min(screenWidth - 48, 360);
   const [nearbyBarbers, setNearbyBarbers] = useState<Barber[]>([]);
   // const services = [
   //   {
@@ -215,20 +219,12 @@ export default function Index() {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <TouchableOpacity
+              <BarberProfileCard
+                barber={item}
                 onPress={() => router.push(`/barber/${item.id}`)}
-                className="w-44 mr-3 bg-neutral-900 rounded-2xl border border-neutral-800 p-3"
-                activeOpacity={0.8}
-              >
-                <Image source={{ uri: item.logoUrl }} className="w-full h-24 rounded-xl" />
-                <Text className="text-white font-semibold mt-3" numberOfLines={1}>{item.name}</Text>
-                <Text className="text-neutral-400 text-xs mt-1" numberOfLines={1}>{item.location}</Text>
-                <View className="flex-row items-center mt-2">
-                  <MaterialIcons name="star" size={15} color="#FFD60A" />
-                  <Text className="text-[#FFD60A] text-xs ml-1">{item.rating.toFixed(1)}</Text>
-                  <Text className="text-neutral-500 text-xs ml-2">{item.distanceKm} km</Text>
-                </View>
-              </TouchableOpacity>
+                style={{ width: barberCardWidth, marginRight: 14 }}
+                height={300}
+              />
             )}
           />
         </View>
@@ -344,4 +340,3 @@ export default function Index() {
     </View>
   );
 }
-

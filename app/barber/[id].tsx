@@ -1,342 +1,449 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { api, type Barber } from "@/src/lib/api";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthContext";
-import { salesPacks } from "@/src/data";
+import { api, type Barber, type Service } from "@/src/lib/api";
 import "../global.css";
 
+const formatPrice = (price: number) =>
+  `${Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2)} TND`;
+
+type BarberLoadState = {
+  id: string | null;
+  attempt: number;
+  status: "loading" | "ready" | "error";
+  barber?: Barber;
+  error?: string;
+};
+
 export default function BarberProfile() {
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const id = params.id as string | undefined;
-  const [barber, setBarber] = useState<Barber | null>(null);
-  const [followerCount, setFollowerCount] = useState(0);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const { width } = useWindowDimensions();
+  const [loadState, setLoadState] = useState<BarberLoadState>({
+    id: null,
+    attempt: -1,
+    status: "loading",
+  });
+  const [selection, setSelection] = useState<{ barberId: string; serviceId: string | null } | null>(null);
+  const [favoriteState, setFavoriteState] = useState<{ id: string | undefined; isFollowing: boolean }>({
+    id: undefined,
+    isFollowing: false,
+  });
   const [followPending, setFollowPending] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [entrance] = useState(() => new Animated.Value(0));
+  const [buttonScale] = useState(() => new Animated.Value(1));
+  const barber = loadState.id === id && loadState.status === "ready" ? loadState.barber ?? null : null;
+  const isLoading = Boolean(id) && (
+    loadState.id !== id || loadState.attempt !== retryCount || loadState.status === "loading"
+  );
+  const loadError = id
+    ? loadState.id === id && loadState.status === "error"
+      ? loadState.error
+      : null
+    : "A barber was not selected.";
+  const selectedServiceId = barber && selection?.barberId === barber.id
+    ? selection.serviceId
+    : barber?.services[0]?.id ?? null;
+  const isFollowing = user?.role === "customer" && favoriteState.id === id && favoriteState.isFollowing;
+
   useEffect(() => {
-    if (!id) return;
     let active = true;
-    api.getBarber(id).then(({ barber: result }) => { if (active) setBarber(result); }).catch(() => { if (active) setBarber(null); });
-    api.getBarberFollowerCount(id).then(({ followers }) => { if (active) setFollowerCount(followers); }).catch(() => {});
+    if (!id) return () => { active = false; };
+
+    api.getBarber(id)
+      .then(({ barber: result }) => {
+        if (!active) return;
+        setLoadState({ id, attempt: retryCount, status: "ready", barber: result });
+        setSelection({ barberId: result.id, serviceId: result.services[0]?.id ?? null });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setLoadState({
+          id,
+          attempt: retryCount,
+          status: "error",
+          error: error instanceof Error ? error.message : "Could not load this barber.",
+        });
+      });
+
     if (user?.role === "customer") {
-      api.getFavorites().then(({ barbers }) => { if (active) setIsFollowing(barbers.some((item) => item.id === id)); }).catch(() => {});
+      api.getFavorites()
+        .then(({ barbers }) => {
+          if (active) setFavoriteState({ id, isFollowing: barbers.some((item) => item.id === id) });
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            Alert.alert(
+              "Favorites unavailable",
+              error instanceof Error ? error.message : "Could not load your saved barbers.",
+            );
+          }
+        });
     }
-    return () => { active = false; };
-  }, [id, user?.id, user?.role]);
 
-  const [tab, setTab] = useState<"about" | "gallery" | "services" | "packs">("about");
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [dateIndex, setDateIndex] = useState(0);
-  const [timeIndex, setTimeIndex] = useState(0);
+    return () => {
+      active = false;
+    };
+  }, [id, retryCount, user?.id, user?.role]);
 
-  if (!barber) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <Text className="text-neutral-300">Barber not found.</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    entrance.setValue(0);
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 420,
+      useNativeDriver: true,
+    }).start();
+  }, [barber, entrance]);
 
-  const dates = (() => {
-    const arr: string[] = [];
-    const today = new Date();
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() + i);
-      arr.push(d.toDateString());
-    }
-    return arr;
-  })();
+  const selectedService = useMemo(
+    () => barber?.services.find((service) => service.id === selectedServiceId) ?? null,
+    [barber, selectedServiceId],
+  );
+  const specialty = barber?.services.slice(0, 2).map((service) => service.name).join(" · ")
+    || "Barber & grooming";
+  const description = barber
+    ? barber.description?.trim()
+      || (barber.services.length
+        ? `${barber.name} offers ${barber.services.map((service) => service.name).join(", ")} at ${barber.location}. Choose a service to see its price and estimated duration before booking.`
+        : `${barber.name} is based in ${barber.location}. Check back soon for available services.`)
+    : "";
+  const coverHeight = Math.min(440, Math.max(330, width * 0.96));
 
-  const times = ["09:00", "10:00", "11:00", "13:00", "15:00", "17:00"];
-
-  const galleryPosts = [
-    {
-      id: "g1",
-      title: "Fresh fade styles this week",
-      caption: "New fade techniques and discounts on student cuts.",
-      image: "https://picsum.photos/600/400?random=21",
-      date: "2 days ago",
-    },
-    {
-      id: "g2",
-      title: "Beard-care routine",
-      caption: "Learn the routine to keep your beard sharp.",
-      image: "https://picsum.photos/600/400?random=22",
-      date: "1 week ago",
-    },
-    {
-      id: "g3",
-      title: "Client result",
-      caption: "Clean lines and a tailored finish.",
-      image: "https://picsum.photos/600/400?random=23",
-      date: "3 days ago",
-    },
-    {
-      id: "g4",
-      title: "Studio mood",
-      caption: "A modern look with attention to detail.",
-      image: "https://picsum.photos/600/400?random=24",
-      date: "5 days ago",
-    },
-    {
-      id: "g5",
-      title: "Detail work",
-      caption: "Precision shaping for a sharp silhouette.",
-      image: "https://picsum.photos/600/400?random=25",
-      date: "1 week ago",
-    },
-    {
-      id: "g6",
-      title: "New collection",
-      caption: "Fresh styles for the season.",
-      image: "https://picsum.photos/600/400?random=26",
-      date: "2 weeks ago",
-    },
-  ];
-
-  const bio = `${barber.name} is an experienced barber offering premium cuts and grooming services. Friendly vibe and attention to detail.`;
   const toggleFollow = async () => {
     if (!id || followPending) return;
     setFollowPending(true);
     try {
       const result = await api.toggleFavorite(id);
-      setIsFollowing(result.saved);
-      setFollowerCount((count) => Math.max(0, count + (result.saved ? 1 : -1)));
+      setFavoriteState({ id, isFollowing: result.saved });
     } catch (error) {
-      Alert.alert("Could not update follow", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Could not update favorites",
+        error instanceof Error ? error.message : "Please try again.",
+      );
     } finally {
       setFollowPending(false);
     }
   };
 
+  const animateButton = (toValue: number) => {
+    Animated.spring(buttonScale, {
+      toValue,
+      speed: 26,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const bookSelectedService = (service: Service | null) => {
+    if (!barber || !service) return;
+    router.push({
+      pathname: "/book/[barberId]/[serviceId]",
+      params: { barberId: barber.id, serviceId: service.id },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-[#111111]">
+        <ActivityIndicator size="large" color="#FFBE0B" />
+        <Text className="mt-4 text-sm text-neutral-300">Loading barber profile…</Text>
+      </View>
+    );
+  }
+
+  if (!barber) {
+    return (
+      <View className="flex-1 items-center justify-center bg-[#111111] px-8">
+        <MaterialIcons name="content-cut" size={40} color="#FFBE0B" />
+        <Text className="mt-4 text-center text-lg font-PlayfairB text-white">
+          Barber unavailable
+        </Text>
+        <Text className="mt-2 text-center text-sm text-neutral-400">
+          {loadError ?? "This barber profile could not be found."}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setRetryCount((count) => count + 1)}
+          className="mt-6 rounded-full bg-[#FFBE0B] px-6 py-3"
+          accessibilityRole="button"
+        >
+          <Text className="font-bold text-[#17130A]">Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4 p-2">
+          <Text className="font-semibold text-neutral-300">Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView className="flex-1 bg-background">
-      {/* Back Button */}
-      <TouchableOpacity 
-        onPress={() => router.back()} 
-        className="absolute top-4 left-4 z-10 bg-black/60 p-2 rounded-full"
+    <View className="flex-1 bg-[#111111]">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 132 + insets.bottom }}
       >
-        <Text className="text-[#FFD60A] text-xl">←</Text>
-      </TouchableOpacity>
-
-      <View className="h-44 w-full">
-        <Image source={{ uri: barber.logoUrl }} className="w-full h-full opacity-50" resizeMode="cover" />
-        <View className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-      </View>
-
-      <View className="-mt-16 px-4">
-        <View className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800 shadow-soft">
-          <View className="flex-row items-center">
-            <Image source={{ uri: barber.logoUrl }} className="w-28 h-28 rounded-full border-2 border-[#FFD60A] mr-4" />
-            <View className="flex-1">
-              <Text className="text-2xl font-PlayfairB text-white">{barber.name}</Text>
-              <Text className="text-sm text-neutral-300 mt-1">📍 {barber.location}</Text>
-              <View className="flex-row items-center mt-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Text key={i} className={`text-base ${i <= Math.round(barber.rating) ? "text-[#FFD60A]" : "text-neutral-500"}`}>★</Text>
-                ))}
-                <Text className="text-sm text-neutral-500 ml-2">{barber.rating.toFixed(1)}</Text>
-              </View>
-            </View>
-          </View>
-
-          <Text className="text-sm text-neutral-300 mt-4">{bio}</Text>
-          <View className="flex-row items-center justify-between mt-4 pt-4 border-t border-neutral-800">
-            <View>
-              <Text className="text-white font-bold">{followerCount}</Text>
-              <Text className="text-neutral-500 text-xs mt-1">{followerCount === 1 ? "follower" : "followers"}</Text>
-            </View>
-            {user?.role === "customer" && (
+        <Animated.View
+          style={{
+            opacity: entrance,
+            transform: [
+              { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+            ],
+          }}
+        >
+          <ImageBackground
+            source={{ uri: barber.services.find((service) => service.imageUrl)?.imageUrl ?? barber.logoUrl }}
+            resizeMode="cover"
+            style={[styles.cover, { height: coverHeight }]}
+            imageStyle={styles.coverImage}
+          >
+            <LinearGradient
+              colors={["rgba(10,10,10,0.3)", "rgba(10,10,10,0.04)", "rgba(10,10,10,0.92)"]}
+              locations={[0, 0.42, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[styles.coverActions, { paddingTop: insets.top + 10 }]}>
               <TouchableOpacity
-                disabled={followPending}
-                onPress={() => void toggleFollow()}
-                className={`flex-row items-center justify-center rounded-xl px-5 py-3 ${isFollowing ? "border border-[#FFD60A] bg-[#FFD60A]/10" : "bg-[#FFD60A]"}`}
+                onPress={() => router.back()}
+                className="h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45"
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
               >
-                <MaterialIcons name={isFollowing ? "check" : "person-add-alt-1"} size={18} color={isFollowing ? "#FFD60A" : "#111"} />
-                <Text className={`font-bold ml-2 ${isFollowing ? "text-[#FFD60A]" : "text-black"}`}>{followPending ? "Updating..." : isFollowing ? "Following" : "Follow"}</Text>
+                <MaterialIcons name="arrow-back" size={22} color="#FFFFFF" />
               </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View className="flex-row mt-4 bg-neutral-900 rounded-full p-1 border border-neutral-800">
-          <TouchableOpacity onPress={() => setTab("about")} className={`flex-1 items-center py-2 rounded-full ${tab === "about" ? "bg-[#FFD60A]" : ""}`}>
-            <Text className={`${tab === "about" ? "text-dark font-bold" : "text-neutral-300"}`}>About</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setTab("gallery")} className={`flex-1 items-center py-2 rounded-full ${tab === "gallery" ? "bg-[#FFD60A]" : ""}`}>
-            <Text className={`${tab === "gallery" ? "text-dark font-bold" : "text-neutral-300"}`}>Gallery</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setTab("services")} className={`flex-1 items-center py-2 rounded-full ${tab === "services" ? "bg-[#FFD60A]" : ""}`}>
-            <Text className={`${tab === "services" ? "text-dark font-bold" : "text-neutral-300"}`}>Services</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab content */}
-        <View className="mt-4">
-          {tab === "about" && (
-            <View>
-              <Text className="text-lg font-PlayfairB text-white mb-2">Welcome</Text>
-              <Text className="text-sm text-neutral-300">{bio}</Text>
-            </View>
-          )}
-
-          {tab === "gallery" && (
-            <View className="space-y-4">
-              <View className="bg-neutral-900 rounded-2xl overflow-hidden border border-neutral-800">
-                <Image source={{ uri: galleryPosts[0].image }} className="w-full h-56" resizeMode="cover" />
-                <View className="p-3">
-                  <Text className="text-base font-PlayfairB text-white">{galleryPosts[0].title}</Text>
-                  <Text className="text-sm text-neutral-300 mt-1">{galleryPosts[0].caption}</Text>
-                  <Text className="text-xs text-neutral-500 mt-2">{galleryPosts[0].date}</Text>
-                </View>
-              </View>
-
-              <View className="flex-row flex-wrap justify-between">
-                {galleryPosts.slice(1).map((post) => (
-                  <TouchableOpacity key={post.id} className="w-[48%] mb-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900">
-                    <Image source={{ uri: post.image }} className="w-full h-32" resizeMode="cover" />
-                    <View className="p-2">
-                      <Text className="text-xs text-white font-semibold" numberOfLines={1}>{post.title}</Text>
-                      <Text className="text-[10px] text-neutral-500 mt-1">{post.date}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {tab === "services" && (
-            <View>
-              <Text className="text-lg font-PlayfairB text-white mb-3">Services</Text>
-              <View className="flex-row flex-wrap justify-between">
-                {barber.services.map((s) => {
-                  const selected = selectedServices.includes(s.id);
-                  return (
-                    <TouchableOpacity
-                      key={s.id}
-                      onPress={() => {
-                        setSelectedServices((prev) => (prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]));
-                      }}
-                      className={`w-[48%] mb-3 bg-neutral-900 p-3 rounded-md border ${selected ? "border-[#FFD60A] bg-[#FFD60A11]" : "border-neutral-800"} items-center relative`}
-                    >
-                      <Image source={{ uri: s.imageUrl }} className="w-20 h-20 rounded-md mb-3" />
-                      <Text className="text-base text-white font-semibold text-center">{s.name}</Text>
-                      <Text className="text-sm text-neutral-300 mt-1">{s.price} TND • {s.durationMinutes} min</Text>
-
-                      {/* <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          router.push(`/book/${barber.id}/${s.id}` as any);
-                        }}
-                        className="absolute bottom-2 right-2 bg-[#FFD60A] px-2 py-1 rounded"
-                      >
-                        <Text className="text-dark text-xs font-bold">Book</Text>
-                      </TouchableOpacity> */}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-        {/* Booking modal (summary) */}
-        <Modal visible={showBookingModal} animationType="slide" transparent>
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-background rounded-t-2xl p-4 max-h-[80%]">
-              <Text className="text-lg font-PlayfairB text-white mb-2">Confirm Booking</Text>
-              <Text className="text-sm text-neutral-300 mb-3">Selected services ({selectedServices.length})</Text>
-              <View className="space-y-2 mb-3">
-                {barber.services
-                  .filter((s) => selectedServices.includes(s.id))
-                  .map((s) => (
-                    <View key={s.id} className="flex-row justify-between items-center">
-                      <Text className="text-white">{s.name}</Text>
-                      <Text className="text-neutral-300">{s.price}</Text>
-                    </View>
-                  ))}
-              </View>
-
-              <Text className="text-sm text-neutral-300 mb-2">Choose date</Text>
-              <View className="flex-row gap-2 mb-3">
-                {dates.map((d, i) => (
-                  <TouchableOpacity key={d} onPress={() => setDateIndex(i)} className={`px-3 py-2 rounded-md ${dateIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-                    <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(d).toLocaleDateString()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text className="text-sm text-neutral-300 mb-2">Choose time</Text>
-              <View className="flex-row flex-wrap gap-2 mb-4">
-                {times.map((t, i) => (
-                  <TouchableOpacity key={t} onPress={() => setTimeIndex(i)} className={`px-3 py-2 rounded-md ${timeIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-                    <Text className={`${timeIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View className="flex-row justify-between">
-                <TouchableOpacity onPress={() => setShowBookingModal(false)} className="px-4 py-3 border border-neutral-700 rounded-lg">
-                  <Text className="text-neutral-300">Cancel</Text>
-                </TouchableOpacity>
+              {user?.role === "customer" && (
                 <TouchableOpacity
-                  onPress={() => {
-                    setShowBookingModal(false);
-                    const q = selectedServices.join(",");
-                    router.push({
-                      pathname: "/book/multi/[barberId]",
-                      params: { barberId: barber.id, services: q }
-                    });
-                  }}
-                  className="px-4 py-3 bg-[#FFD60A] rounded-lg"
+                  onPress={() => void toggleFollow()}
+                  disabled={followPending}
+                  className="h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45"
+                  accessibilityRole="button"
+                  accessibilityLabel={isFollowing ? "Remove barber from favorites" : "Add barber to favorites"}
+                  accessibilityState={{ disabled: followPending, selected: isFollowing }}
                 >
-                  <Text className="text-dark font-bold">Proceed</Text>
+                  <MaterialIcons
+                    name={isFollowing ? "favorite" : "favorite-border"}
+                    size={21}
+                    color={isFollowing ? "#FFBE0B" : "#FFFFFF"}
+                  />
                 </TouchableOpacity>
+              )}
+            </View>
+
+            <View className="px-5 pb-6">
+              <View className="mb-3 self-start rounded-full border border-[#FFBE0B]/50 bg-[#2A2312]/90 px-3 py-1.5">
+                <Text className="text-[10px] font-bold uppercase tracking-[1.7px] text-[#FFBE0B]">
+                  Stylish barber
+                </Text>
               </View>
+              <Text className="text-3xl font-PlayfairB text-white" numberOfLines={2}>
+                {barber.name}
+              </Text>
+              <Text className="mt-1.5 text-sm font-medium text-neutral-200" numberOfLines={1}>
+                {specialty}
+              </Text>
+            </View>
+          </ImageBackground>
+
+          <View className="px-5 pt-5">
+            <View className="mb-7 flex-row items-center">
+              <View className="mr-3 flex-row items-center rounded-full border border-[#FFBE0B]/30 bg-[#2A2312] px-3 py-2">
+                <MaterialIcons name="star" size={17} color="#FFBE0B" />
+                <Text className="ml-1.5 text-sm font-bold text-white">{barber.rating.toFixed(1)}</Text>
+                <Text className="ml-1 text-xs text-neutral-300">rating</Text>
+              </View>
+              <View className="min-w-0 flex-1 flex-row items-center">
+                <MaterialIcons name="place" size={18} color="#FFBE0B" />
+                <Text className="ml-1.5 flex-1 text-sm text-neutral-300" numberOfLines={2}>
+                  {barber.location}
+                </Text>
+              </View>
+            </View>
+
+            <View className="mb-7">
+              <View className="mb-4 flex-row items-end justify-between">
+                <View>
+                  <Text className="text-[10px] font-bold uppercase tracking-[2px] text-[#FFBE0B]">
+                    The menu
+                  </Text>
+                  <Text className="mt-1 text-2xl font-PlayfairB text-white">Choose a service</Text>
+                </View>
+                <Text className="pb-1 text-xs text-neutral-400">
+                  {barber.services.length} {barber.services.length === 1 ? "service" : "services"}
+                </Text>
+              </View>
+
+              {barber.services.length > 0 ? (
+                <View className="gap-3">
+                  {barber.services.map((service) => {
+                    const selected = service.id === selectedServiceId;
+                    return (
+                      <TouchableOpacity
+                        key={service.id}
+                        onPress={() => setSelection({ barberId: barber.id, serviceId: service.id })}
+                        activeOpacity={0.82}
+                        className={`flex-row items-center rounded-2xl border p-3 ${
+                          selected
+                            ? "border-[#FFBE0B] bg-[#2A2312]"
+                            : "border-white/10 bg-[#191A1A]"
+                        }`}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`${service.name}, ${formatPrice(service.price)}, ${service.durationMinutes} minutes`}
+                      >
+                        {service.imageUrl ? (
+                          <Image
+                            source={{ uri: service.imageUrl }}
+                            className="h-[68px] w-[68px] rounded-xl"
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View className="h-[68px] w-[68px] items-center justify-center rounded-xl bg-[#24201A]">
+                            <MaterialIcons name="content-cut" size={25} color="#FFBE0B" />
+                          </View>
+                        )}
+                        <View className="ml-3 min-w-0 flex-1">
+                          <Text className="text-base font-semibold text-white" numberOfLines={2}>
+                            {service.name}
+                          </Text>
+                          <View className="mt-2 flex-row items-center">
+                            <MaterialIcons name="schedule" size={14} color="#A3A3A3" />
+                            <Text className="ml-1 text-xs text-neutral-400">
+                              {service.durationMinutes} min
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="ml-2 items-end">
+                          <Text className={`text-base font-bold ${selected ? "text-[#FFBE0B]" : "text-white"}`}>
+                            {formatPrice(service.price)}
+                          </Text>
+                          <View
+                            className={`mt-2 h-5 w-5 items-center justify-center rounded-full border ${
+                              selected ? "border-[#FFBE0B] bg-[#FFBE0B]" : "border-neutral-500"
+                            }`}
+                          >
+                            {selected && <MaterialIcons name="check" size={14} color="#17130A" />}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View className="rounded-2xl border border-white/10 bg-[#191A1A] p-5">
+                  <Text className="text-sm text-neutral-300">
+                    No services are available to book right now.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View className="rounded-2xl border border-white/10 bg-[#191A1A] p-5">
+              <Text className="text-[10px] font-bold uppercase tracking-[2px] text-[#FFBE0B]">
+                About the barber
+              </Text>
+              <Text
+                className="mt-3 text-sm leading-6 text-neutral-300"
+                numberOfLines={isDescriptionExpanded ? undefined : 3}
+              >
+                {description}
+              </Text>
+              {description.length > 120 && (
+                <TouchableOpacity
+                  onPress={() => setIsDescriptionExpanded((expanded) => !expanded)}
+                  className="mt-2 self-start py-1"
+                  accessibilityRole="button"
+                  accessibilityLabel={isDescriptionExpanded ? "Show less about the barber" : "Read more about the barber"}
+                >
+                  <Text className="text-sm font-bold text-[#FFBE0B]">
+                    {isDescriptionExpanded ? "Read Less" : "Read More"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
-        </Modal>
+        </Animated.View>
+      </ScrollView>
 
-          {tab === "packs" && (
-            <View>
-              <Text className="text-lg font-PlayfairB text-white mb-3">Packs & Offers</Text>
-              <View className="space-y-4">
-                {salesPacks.map((p) => (
-                  <View key={p.id} className="bg-neutral-900 rounded-md overflow-hidden border border-neutral-800">
-                    <Image source={{ uri: p.image }} className="w-full h-40" resizeMode="cover" />
-                    <View className="p-3 flex-row justify-between items-start">
-                      <View className="flex-1 pr-3">
-                        <Text className="text-base font-PlayfairB text-white">{p.title}</Text>
-                        <Text className="text-sm text-neutral-300 mt-1">{p.description}</Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-sm text-neutral-300 mb-2">{p.price}</Text>
-                        <Text className="text-xs text-[#FFD60A]">{p.discount}</Text>
-                        <TouchableOpacity className="mt-3 bg-[#FFD60A] px-3 py-2 rounded-md">
-                          <Text className="text-dark font-bold">Buy</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+      <View
+        style={[styles.bookingBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+        className="absolute bottom-0 left-0 right-0 border-t border-white/10 bg-[#111111]/95 px-5 pt-3"
+      >
+        <View className="flex-row items-center">
+          <View className="mr-4 min-w-0 flex-1">
+            <Text className="text-[10px] font-bold uppercase tracking-[1.5px] text-neutral-400">
+              {selectedService ? selectedService.name : "Select a service"}
+            </Text>
+            <Text className="mt-1 text-lg font-PlayfairB text-[#FFBE0B]">
+              {selectedService ? formatPrice(selectedService.price) : "—"}
+            </Text>
+          </View>
+          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+            <Pressable
+              onPress={() => bookSelectedService(selectedService)}
+              onPressIn={() => animateButton(0.97)}
+              onPressOut={() => animateButton(1)}
+              disabled={!selectedService}
+              accessibilityRole="button"
+              accessibilityLabel={selectedService ? `Book ${selectedService.name} for ${formatPrice(selectedService.price)}` : "Choose a service to book"}
+              className={`min-w-[155px] flex-row items-center justify-center rounded-full px-6 py-4 ${
+                selectedService ? "bg-[#FFBE0B]" : "bg-neutral-700"
+              }`}
+            >
+              <Text className="mr-2 text-sm font-bold text-[#17130A]">Book Now</Text>
+              <MaterialIcons name="arrow-forward" size={18} color="#17130A" />
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
-      {/* Bottom Book Selected button */}
-      {selectedServices.length > 0 && (
-        <View className="absolute bottom-6 left-4 right-4 z-50">
-          <TouchableOpacity onPress={() => setShowBookingModal(true)} className="bg-[#FFD60A] py-3 rounded-full items-center">
-            <Text className="text-dark font-bold">Book Selected ({selectedServices.length})</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  cover: {
+    justifyContent: "space-between",
+    marginHorizontal: 12,
+    marginTop: 8,
+    overflow: "hidden",
+    borderRadius: 28,
+    backgroundColor: "#2A2312",
+  },
+  coverImage: {
+    borderRadius: 28,
+  },
+  coverActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  bookingBar: {
+    elevation: 18,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
+  },
+});

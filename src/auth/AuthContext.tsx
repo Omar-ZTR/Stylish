@@ -1,11 +1,12 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
-import { api, setAuthToken, type RegistrationData, type User } from "../lib/api";
+import { api, setAuthToken, type ProfileUpdateData, type RegistrationData, type User } from "../lib/api";
 
 interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegistrationData) => Promise<void>;
+  updateProfile: (data: ProfileUpdateData) => Promise<void>;
   logout: () => void;
 }
 
@@ -29,6 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
   };
 
+  const updateProfile = async (data: ProfileUpdateData) => {
+    const result = await api.updateProfile(data);
+    setUser(result.user);
+  };
+
   const logout = () => {
     setAuthToken(null);
     setUser(null);
@@ -36,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, login, register, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, login, register, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

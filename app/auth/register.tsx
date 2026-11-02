@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CheckCircle,
-  Clock3,
   Eye,
   EyeOff,
   Lock,
@@ -31,6 +30,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthContext";
+import TimeWheelPicker from "@/src/components/booking/TimeWheelPicker";
+import WeekdaySelector from "@/src/components/WeekdaySelector";
+import { ALL_WEEKDAYS } from "@/src/lib/barberSchedule";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -49,6 +51,7 @@ export default function RegisterScreen() {
   const [location, setLocation] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("19:00");
+  const [operatingDays, setOperatingDays] = useState<number[]>([...ALL_WEEKDAYS]);
   const [pauseEnabled, setPauseEnabled] = useState(false);
   const [pauseStartTime, setPauseStartTime] = useState("13:00");
   const [pauseEndTime, setPauseEndTime] = useState("14:00");
@@ -68,6 +71,13 @@ export default function RegisterScreen() {
     confirmPassword?: string;
     terms?: string;
   }>({});
+
+  const renderTimeField = (value: string, label: string, onConfirm: (time: string) => void) => (
+    <View style={styles.timeField}>
+      <Text style={[styles.timeLabel, { color: textSecondary }]}>{label}</Text>
+      <TimeWheelPicker value={value} label={label} compact disabled={isLoading} onConfirm={onConfirm} />
+    </View>
+  );
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -126,7 +136,7 @@ export default function RegisterScreen() {
         phone: phone.trim(),
         password,
         role: accountType ?? "customer",
-        ...(accountType === "barber" ? { barberProfile: { businessName: businessName.trim(), location: location.trim(), startTime, endTime, ...(pauseEnabled ? { pauseStartTime, pauseEndTime } : {}) } } : {}),
+        ...(accountType === "barber" ? { barberProfile: { businessName: businessName.trim(), location: location.trim(), startTime, endTime, operatingDays, ...(pauseEnabled ? { pauseStartTime, pauseEndTime } : {}) } } : {}),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registration failed";
@@ -289,9 +299,19 @@ export default function RegisterScreen() {
                   <View style={styles.fieldWrap}>
                     <Text style={[styles.label, { color: textPrimary }]}>OPENING HOURS</Text>
                     <View style={styles.hoursRow}>
-                      <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={startTime} style={[styles.input, { color: textPrimary }]} onChangeText={setStartTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                      {renderTimeField(startTime, "OPENS", setStartTime)}
                       <Text style={[styles.toText, { color: textSecondary }]}>to</Text>
-                      <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={endTime} style={[styles.input, { color: textPrimary }]} onChangeText={setEndTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                      {renderTimeField(endTime, "CLOSES", setEndTime)}
+                    </View>
+                    <View style={styles.daysSection}>
+                      <WeekdaySelector
+                        days={operatingDays}
+                        onChange={setOperatingDays}
+                        disabled={isLoading}
+                        accentColor="#f59e0b"
+                        textColor={textPrimary}
+                        mutedTextColor={textSecondary}
+                      />
                     </View>
                     <View style={styles.pauseToggleRow}>
                       <View style={styles.pauseToggleCopy}><Text style={[styles.pauseTitle, { color: textPrimary }]}>Add a break</Text><Text style={[styles.pauseDescription, { color: textSecondary }]}>Optional pause during your working day</Text></View>
@@ -299,9 +319,9 @@ export default function RegisterScreen() {
                     </View>
                     {pauseEnabled ? (
                       <View style={styles.hoursRow}>
-                        <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={pauseStartTime} style={[styles.input, { color: textPrimary }]} onChangeText={setPauseStartTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                        {renderTimeField(pauseStartTime, "BREAK START", setPauseStartTime)}
                         <Text style={[styles.toText, { color: textSecondary }]}>pause to</Text>
-                        <View style={[styles.inputContainer, styles.timeInput, { borderColor: inputBorder, backgroundColor: inputBackground }]}><Clock3 size={18} color="#f59e0b" strokeWidth={1.5} /><TextInput value={pauseEndTime} style={[styles.input, { color: textPrimary }]} onChangeText={setPauseEndTime} editable={!isLoading} keyboardType="numbers-and-punctuation" /></View>
+                        {renderTimeField(pauseEndTime, "BREAK END", setPauseEndTime)}
                       </View>
                     ) : null}
                   </View>
@@ -439,7 +459,9 @@ const styles = StyleSheet.create({
   formWrap: { marginBottom: 16 },
   fieldWrap: { marginBottom: 16 },
   hoursRow: { flexDirection: "row", alignItems: "center" },
-  timeInput: { flex: 1, paddingHorizontal: 12 },
+  timeField: { flex: 1 },
+  timeLabel: { fontSize: 11, fontWeight: "600", marginBottom: 8 },
+  daysSection: { marginTop: 16 },
   toText: { marginHorizontal: 9, fontSize: 13, fontWeight: "700" },
   pauseToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14, marginBottom: 12 },
   pauseToggleCopy: { flex: 1 },

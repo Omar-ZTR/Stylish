@@ -1,90 +1,47 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import TimeWheelPicker from "@/src/components/booking/TimeWheelPicker";
-import { api, type Barber } from "@/src/lib/api";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import React from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 import "../../global.css";
 
+type RouteParams = {
+  barberId?: string | string[];
+  services?: string | string[];
+};
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default function MultiBooking() {
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<RouteParams>();
   const router = useRouter();
-  const barberId = params.barberId as string | undefined;
-  const servicesParam = (params.services as string | undefined) ?? "";
-  const serviceIds = servicesParam.split(",").filter(Boolean);
+  const barberId = firstParam(params.barberId);
+  const serviceIds = (firstParam(params.services) ?? "").split(",").filter(Boolean);
 
-  const [barber, setBarber] = useState<Barber | null>(null);
-  useEffect(() => {
-    if (barberId) api.getBarber(barberId).then(({ barber: result }) => setBarber(result)).catch(() => setBarber(null));
-  }, [barberId]);
-  const selectedServices = useMemo(() => barber?.services.filter((s) => serviceIds.includes(s.id)) ?? [], [barber, serviceIds]);
-
-  const [dateIndex, setDateIndex] = useState(0);
-  const [selectedTime, setSelectedTime] = useState("09:00");
-
-  const dates = useMemo(() => {
-    const arr: string[] = [];
-    const today = new Date();
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() + i);
-      arr.push(d.toISOString().slice(0, 10));
-    }
-    return arr;
-  }, []);
-
-  if (!barber) {
+  if (barberId && serviceIds.length) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <Text className="text-neutral-300">Booking item not found.</Text>
-      </View>
+      <Redirect
+        href={{
+          pathname: "/book/[barberId]/[serviceId]",
+          params: {
+            barberId,
+            serviceId: serviceIds[0],
+            services: serviceIds.join(","),
+          },
+        }}
+      />
     );
   }
 
-  async function confirm() {
-    if (!barber) return;
-    const names = selectedServices.map((s) => s.name).join(", ");
-    try {
-      await api.createBooking({ barberId: barber.id, serviceIds, bookingDate: dates[dateIndex], startTime: selectedTime });
-      Alert.alert("Booking confirmed", `You booked ${names} at ${barber.name}.`);
-      router.replace("/(tabs)/profile");
-    } catch (error) {
-      Alert.alert("Booking unavailable", error instanceof Error ? error.message : "Please try another time.");
-    }
-  }
-
   return (
-    <ScrollView className="flex-1 bg-background p-4">
-      <TouchableOpacity onPress={() => router.back()} className="mb-4">
-        <Text className="text-sm text-neutral-300">← Back</Text>
+    <View className="flex-1 items-center justify-center bg-[#111111] px-8">
+      <Text className="text-center text-lg font-PlayfairB text-white">Choose a service first</Text>
+      <Text className="mt-2 text-center text-sm text-neutral-400">
+        Return to the barber profile and select at least one service to book.
+      </Text>
+      <TouchableOpacity onPress={() => router.back()} className="mt-6 rounded-full bg-[#FFBE0B] px-6 py-3">
+        <Text className="font-bold text-[#17130A]">Go back</Text>
       </TouchableOpacity>
-
-      <View className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800">
-        <Text className="text-lg font-PlayfairB text-white mb-2">Booking ({selectedServices.length})</Text>
-        {selectedServices.map((s) => (
-          <View key={s.id} className="flex-row justify-between items-center mb-2">
-            <Text className="text-white">{s.name}</Text>
-            <Text className="text-neutral-300">{s.price}</Text>
-          </View>
-        ))}
-
-        <Text className="text-sm text-neutral-300 mt-4 mb-2">Choose date</Text>
-        <View className="flex-row gap-2 mb-4">
-          {dates.map((d, i) => (
-            <TouchableOpacity key={d} onPress={() => setDateIndex(i)} className={`px-3 py-2 rounded-md ${dateIndex === i ? 'bg-[#FFD60A]' : 'bg-neutral-800'}`}>
-              <Text className={`${dateIndex === i ? 'text-dark font-bold' : 'text-neutral-300'}`}>{new Date(`${d}T12:00:00`).toLocaleDateString()}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text className="text-sm text-neutral-300 mt-2 mb-2">Choose time</Text>
-        <View className="mb-4">
-          <TimeWheelPicker value={selectedTime} onConfirm={setSelectedTime} />
-        </View>
-
-        <TouchableOpacity onPress={confirm} className="w-full bg-[#FFD60A] py-3 rounded-md items-center mt-2">
-          <Text className="text-dark font-bold">Confirm booking ({selectedServices.length})</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    </View>
   );
 }

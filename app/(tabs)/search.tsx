@@ -6,7 +6,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
   ImageBackground,
   Modal, Pressable, ScrollView,
   Text,
@@ -15,6 +14,7 @@ import {
   View,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
+import BarberProfileCard from "@/src/components/BarberProfileCard";
 import { api, type Barber } from "@/src/lib/api";
 import { salesPacks } from "@/src/data";
 import "../global.css";
@@ -267,63 +267,13 @@ export default function Search() {
         />
 
         {resultsBarbers.map((barber) => (
-          <TouchableOpacity key={barber.id} onPress={() => router.push(`/barber/${barber.id}`)} className="items-center bg-neutral-900 border border-neutral-800 p-4 shadow-soft mb-4 rounded-3xl">
-            <View className="flex-row items-center w-full">
-              <Image source={{ uri: barber.logoUrl }} className="w-16 h-16 rounded-full mr-4 border-2 border-[#FFD60A]" resizeMode="cover" />
-
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  <Text className="text-lg font-PlayfairB text-white flex-1" numberOfLines={1}>{barber.name}</Text>
-                  <View className="bg-emerald-500/15 rounded-full px-2 py-1">
-                    <Text className="text-emerald-400 text-[10px] font-bold">OPEN</Text>
-                  </View>
-                </View>
-                <Text className="text-sm text-neutral-300 mt-1">{barber.location} • {barber.distanceKm} km</Text>
-
-                <View className="flex-row items-center mt-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <MaterialIcons
-                      key={i}
-                      name="star"
-                      size={18}
-                      color={i <= Math.round(barber.rating) ? "#FFD60A" : "#C5C5C5"}
-                      style={{ marginRight: 2 }}
-                    />
-                  ))}
-                  <Text className="text-sm font-PlayfairB ml-1 text-neutral-500">{barber.rating.toFixed(1)}</Text>
-                </View>
-              </View>
-
-              <View className="items-center justify-center mr-2">
-                <Text className="text-sm font-PlayfairEB text-neutral-300">{barber.startTime}</Text>
-                <View className="w-[2px] h-6 bg-[#FFD60A] my-1" />
-                <Text className="text-sm font-PlayfairEB text-neutral-300">{barber.endTime}</Text>
-              </View>
-            </View>
-
-            <FlatList
-              data={barber.services}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ marginTop: 16, paddingRight: 12 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity className="rounded-2xl shadow-md ml-3 w-[10rem] h-[13rem] border border-[#FFD60A55] overflow-hidden">
-                  <ImageBackground source={{ uri: item.imageUrl }} resizeMode="cover" className="w-full h-full justify-end" imageStyle={{ borderRadius: 8 }}>
-                    <View className="absolute inset-0 bg-black/40 rounded-sm" />
-                    <View className="p-3">
-                      <Text className="text-base font-semibold text-white drop-shadow-lg">{item.name}</Text>
-                      <Text className="text-gray-200 text-xs mt-1">{item.durationMinutes} min • {item.price} TND</Text>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-              )}
-            />
-            <TouchableOpacity onPress={() => router.push(`/barber/${barber.id}`)} className="flex-row items-center justify-center bg-[#FFD60A] rounded-xl py-3 mt-4 w-full">
-              <MaterialIcons name="calendar-month" size={18} color="#111111" />
-              <Text className="text-black font-bold ml-2">View availability</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
+          <BarberProfileCard
+            key={barber.id}
+            barber={barber}
+            onPress={() => router.push(`/barber/${barber.id}`)}
+            style={{ width: "100%", marginBottom: 16 }}
+            height={300}
+          />
         ))}
         {resultsBarbers.length === 0 && resultsSales.length === 0 && (
           <View className="items-center justify-center py-16 px-6">
