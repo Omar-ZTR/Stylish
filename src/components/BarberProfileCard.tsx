@@ -3,7 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import {
   Animated,
-  Image,
   ImageBackground,
   Pressable,
   StyleSheet,
@@ -19,6 +18,7 @@ interface BarberProfileCardProps {
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
   height?: number;
+  showStartingPrice?: boolean;
 }
 
 export default function BarberProfileCard({
@@ -26,11 +26,13 @@ export default function BarberProfileCard({
   onPress,
   style,
   height = 300,
+  showStartingPrice = false,
 }: BarberProfileCardProps) {
   const [entrance] = useState(() => new Animated.Value(0));
   const [pressScale] = useState(() => new Animated.Value(1));
   const specialty = barber.services[0]?.name ?? "Expert barber";
   const backgroundImage = barber.services.find((service) => service.imageUrl)?.imageUrl ?? barber.logoUrl;
+  const startingPrice = Math.min(...barber.services.map((service) => service.price));
 
   useEffect(() => {
     Animated.timing(entrance, {
@@ -92,7 +94,7 @@ export default function BarberProfileCard({
           />
           <View className="flex-1 justify-between p-2">
             <View className="flex-row items-start justify-between">
-              <View className="mr-2 min-w-0 flex-1 flex-row items-center rounded-full border border-white/15 bg-black/30 py-2 pl-2 pr-4"
+              <View className="mr-2 min-w-0 flex-1 flex-row items-center rounded-full bg-black/20 py-2 pl-2 pr-4"
                 style={styles.borderGold}>
 
                 <View className="ml-3 min-w-0 flex-1">
@@ -129,7 +131,10 @@ export default function BarberProfileCard({
                   <Text className="text-[10px] font-bold uppercase tracking-[2px] text-[#FFD60A]">
                     Barber studio
                   </Text>
-                  <Text className="mt-1 text-xs text-neutral-300">
+                  <Text className="mt-1 text-xs text-neutral-300" numberOfLines={1}>
+                    {showStartingPrice && Number.isFinite(startingPrice)
+                      ? `From ${Number.isInteger(startingPrice) ? startingPrice.toFixed(0) : startingPrice.toFixed(2)} TND · `
+                      : ""}
                     Discover services and book
                   </Text>
                 </View>

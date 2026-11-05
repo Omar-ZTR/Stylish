@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Alert, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { api, Barber, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
@@ -12,6 +12,7 @@ const createPostId = () => `${Date.now()}`;
 
 interface BookingHistory {
   id: string;
+  barberId: string;
   barber: string;
   service: string;
   date: string;
@@ -21,6 +22,7 @@ interface BookingHistory {
 }
 
 const Profile = () => {
+  const router = useRouter();
   const { user: authUser } = useAuth();
   const isBarber = authUser?.role === 'barber';
   const [activeTab, setActiveTab] = useState<'info' | 'history' | 'wallet' | 'gallery'>(() => isBarber ? 'gallery' : 'wallet');
@@ -117,6 +119,7 @@ const Profile = () => {
   };
   const bookingHistory: BookingHistory[] = bookings.map((booking) => ({
     id: booking.id,
+    barberId: booking.barberId,
     barber: barberNames[booking.barberId] ?? 'Barber',
     service: `${booking.serviceIds.length} service${booking.serviceIds.length === 1 ? '' : 's'}`,
     date: booking.bookingDate,
@@ -209,17 +212,22 @@ const Profile = () => {
         </View>
 
         {upcomingBooking && (
-          <View className="flex-row items-center bg-black/35 border border-[#FFD60A]/30 rounded-xl p-3 mt-5">
+          <TouchableOpacity
+            onPress={() => router.push(`/barber/${upcomingBooking.barberId}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${upcomingBooking.barber}'s profile`}
+            className="mt-5 flex-row items-center rounded-xl border border-[#FFD60A]/30 bg-black/35 p-3"
+          >
             <View className="w-10 h-10 rounded-lg bg-[#FFD60A]/15 items-center justify-center">
               <MaterialIcons name="event-available" size={21} color="#FFD60A" />
             </View>
             <View className="flex-1 ml-3">
               <Text className="text-[#FFD60A] text-[10px] font-bold tracking-wider">NEXT APPOINTMENT</Text>
-              <Text className="text-white font-semibold mt-1" numberOfLines={1}>{upcomingBooking.barber}</Text>
+              <Text className="mt-1 font-semibold text-white" numberOfLines={1}>{upcomingBooking.barber}</Text>
               <Text className="text-neutral-400 text-xs mt-1">{new Date(upcomingBooking.date).toLocaleDateString()} · {upcomingBooking.time}</Text>
             </View>
             <MaterialIcons name="chevron-right" size={22} color="#a3a3a3" />
-          </View>
+          </TouchableOpacity>
         )}
       </LinearGradient>
 
@@ -380,7 +388,14 @@ const Profile = () => {
                 >
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1">
-                      <Text className="text-white font-semibold">{booking.barber}</Text>
+                      <TouchableOpacity
+                        onPress={() => router.push(`/barber/${booking.barberId}`)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${booking.barber}'s profile`}
+                        className="self-start"
+                      >
+                        <Text className="font-semibold text-white">{booking.barber}</Text>
+                      </TouchableOpacity>
                       <Text className="text-neutral-400 text-sm mt-1">{booking.service}</Text>
                     </View>
                     <View

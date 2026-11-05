@@ -14,9 +14,15 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
+  type ScrollViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api, type Barber, type Booking as BookingRecord } from "@/src/lib/api";
+import {
+  api,
+  type Barber,
+  type Booking as BookingRecord,
+  type ServicePackage,
+} from "@/src/lib/api";
 import { isOpenOnDate } from "@/src/lib/barberSchedule";
 import "../../global.css";
 
@@ -24,6 +30,10 @@ type RouteParams = {
   barberId?: string | string[];
   serviceId?: string | string[];
   services?: string | string[];
+  packageId?: string | string[];
+  totalPrice?: string | string[];
+  durationMinutes?: string | string[];
+  startAtDate?: string | string[];
 };
 
 type BarberLoadState = {
@@ -49,6 +59,13 @@ type AvailabilityState = {
   key: string;
   status: "loading" | "ready" | "error";
   data?: Availability;
+  error?: string;
+};
+
+type PackageLoadState = {
+  id: string | null;
+  status: "loading" | "ready" | "error";
+  servicePackage?: ServicePackage;
   error?: string;
 };
 
@@ -158,6 +175,10 @@ export default function Booking() {
   const { width } = useWindowDimensions();
   const barberId = getParam(params.barberId);
   const serviceId = getParam(params.serviceId);
+  const packageId = getParam(params.packageId);
+  const packagePriceParam = getParam(params.totalPrice);
+  const packageDurationParam = getParam(params.durationMinutes);
+  const startAtDate = getParam(params.startAtDate) === "true";
   const servicesParam = getParam(params.services);
   const routeServiceIds = useMemo(() => {
     const ids = servicesParam?.split(",").filter(Boolean) ?? [];
@@ -165,6 +186,10 @@ export default function Booking() {
     return [...new Set(ids)];
   }, [serviceId, servicesParam]);
   const [barberState, setBarberState] = useState<BarberLoadState>({
+    id: null,
+    status: "loading",
+  });
+  const [packageState, setPackageState] = useState<PackageLoadState>({
     id: null,
     status: "loading",
   });
@@ -179,6 +204,7 @@ export default function Booking() {
   const [entrance] = useState(() => new Animated.Value(0));
   const [buttonScale] = useState(() => new Animated.Value(1));
   const submittingRef = useRef(false);
+  const bookingScrollRef = useRef<ScrollViewInstance>(null);
 
   const dates = useMemo(() => createDates(), []);
   const barber = barberState.id === barberId && barberState.status === "ready"
@@ -191,14 +217,37 @@ export default function Booking() {
       ? barberState.error
       : null
     : "A barber was not selected.";
+  const servicePackage = packageId
+    && packageState.id === packageId
+    && packageState.status === "ready"
+    ? packageState.servicePackage ?? null
+    : null;
+  const packageLoading = Boolean(packageId)
+    && (packageState.id !== packageId || packageState.status === "loading");
+  const packageError = packageId && packageState.id === packageId && packageState.status === "error"
+    ? packageState.error
+    : null;
   const services = useMemo(() => {
     if (!barber) return [];
     return routeServiceIds
       .map((id) => barber.services.find((service) => service.id === id))
       .filter((service) => service !== undefined);
   }, [barber, routeServiceIds]);
-  const totalPrice = services.reduce((total, service) => total + service.price, 0);
-  const totalDuration = services.reduce((total, service) => total + service.durationMinutes, 0);
+  const serviceIdsMatchPackage = servicePackage
+    ? servicePackage.serviceIds.length === routeServiceIds.length
+      && servicePackage.serviceIds.every((id) => routeServiceIds.includes(id))
+    : false;
+  const packageQuoteMatches = !packageId || Boolean(
+    servicePackage
+    && servicePackage.barberId === barberId
+    && serviceIdsMatchPackage
+    && (!packagePriceParam || Number(packagePriceParam) === servicePackage.finalPrice)
+    && (!packageDurationParam || Number(packageDurationParam) === servicePackage.durationMinutes),
+  );
+  const totalPrice = servicePackage?.finalPrice
+    ?? services.reduce((total, service) => total + service.price, 0);
+  const totalDuration = servicePackage?.durationMinutes
+    ?? services.reduce((total, service) => total + service.durationMinutes, 0);
   const dateIsOpen = barber ? isOpenOnDate(barber.operatingDays, selectedDate) : false;
   const availabilityKey = `${barberId ?? ""}:${selectedDate}:${availabilityRetry}`;
   const availability = availabilityState.key === availabilityKey
@@ -247,6 +296,28 @@ export default function Booking() {
   }, [barberId]);
 
   useEffect(() => {
+    let active = true;
+    if (!packageId) return () => { active = false; };
+
+    api.getPackage(packageId)
+      .then(({ servicePackage: result }) => {
+        if (active) setPackageState({ id: packageId, status: "ready", servicePackage: result });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setPackageState({
+          id: packageId,
+          status: "error",
+          error: error instanceof Error ? error.message : "Could not load this package.",
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [packageId]);
+
+  useEffect(() => {
     if (!barber || !dateIsOpen) return;
     let active = true;
     api.getAvailability(barber.id, selectedDate)
@@ -290,6 +361,7 @@ export default function Booking() {
     if (
       !barber
       || !services.length
+      || !packageQuoteMatches
       || !selectedTime
       || !selectedSlotAvailable
       || submittingRef.current
@@ -300,6 +372,7 @@ export default function Booking() {
     try {
       const { booking } = await api.createBooking({
         barberId: barber.id,
+        ...(packageId ? { packageId } : {}),
         serviceIds: services.map((service) => service.id),
         bookingDate: selectedDate,
         startTime: selectedTime,
@@ -324,7 +397,7 @@ export default function Booking() {
     }
   };
 
-  if (barberLoading || (!barber && !barberError)) {
+  if (barberLoading || packageLoading || (!barber && !barberError)) {
     return (
       <View className="flex-1 items-center justify-center bg-[#111111]">
         <ActivityIndicator size="large" color={ACCENT} />
@@ -348,6 +421,21 @@ export default function Booking() {
     );
   }
 
+  if (packageError || (packageId && !packageQuoteMatches)) {
+    return (
+      <View className="flex-1 items-center justify-center bg-[#111111] px-8">
+        <MaterialIcons name="local-offer" size={40} color={ACCENT} />
+        <Text className="mt-4 text-center text-lg font-PlayfairB text-white">Package unavailable</Text>
+        <Text className="mt-2 text-center text-sm text-neutral-400">
+          {packageError ?? "The package details changed. Return to the package page and try again."}
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-6 rounded-full bg-[#FFBE0B] px-6 py-3">
+          <Text className="font-bold text-[#17130A]">Back to package</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!services.length || services.length !== routeServiceIds.length) {
     return (
       <View className="flex-1 items-center justify-center bg-[#111111] px-8">
@@ -366,6 +454,7 @@ export default function Booking() {
   return (
     <View className="flex-1 bg-[#111111]">
       <ScrollView
+        ref={bookingScrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + 10,
@@ -396,7 +485,13 @@ export default function Booking() {
             </View>
           </View>
 
-          <View className="mb-5 overflow-hidden rounded-3xl border border-[#FFBE0B]/25 bg-[#2A2312]">
+          <TouchableOpacity
+            onPress={() => router.push(`/barber/${barber.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${barber.name}'s profile`}
+            activeOpacity={0.85}
+            className="mb-5 overflow-hidden rounded-3xl border border-[#FFBE0B]/25 bg-[#2A2312]"
+          >
             <LinearGradient
               colors={["rgba(255,190,11,0.12)", "rgba(42,35,18,0.02)"]}
               start={{ x: 0, y: 0 }}
@@ -423,11 +518,13 @@ export default function Booking() {
               </View>
               <MaterialIcons name="verified" size={20} color={ACCENT} />
             </View>
-          </View>
+          </TouchableOpacity>
 
           <View className="mb-5 rounded-3xl border border-white/10 bg-[#191A1A] p-4">
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-base font-PlayfairB text-white">Your services</Text>
+              <Text className="text-base font-PlayfairB text-white">
+                {servicePackage?.title ?? "Your services"}
+              </Text>
               <Text className="text-xs text-neutral-400">
                 {services.length} {services.length === 1 ? "service" : "services"} selected
               </Text>
@@ -448,14 +545,33 @@ export default function Booking() {
             ))}
             <View className="mt-2 flex-row items-center justify-between border-t border-[#FFBE0B]/25 pt-3">
               <View>
-                <Text className="text-[10px] font-bold uppercase tracking-[1.4px] text-neutral-400">Total</Text>
+                <Text className="text-[10px] font-bold uppercase tracking-[1.4px] text-neutral-400">
+                  {servicePackage ? `Package · ${servicePackage.discountPercent}% off` : "Total"}
+                </Text>
                 <Text className="mt-1 text-xs text-neutral-300">{formatDuration(totalDuration)} service time</Text>
               </View>
-              <Text className="text-xl font-PlayfairB text-[#FFBE0B]">{formatPrice(totalPrice)}</Text>
+              <View className="items-end">
+                {servicePackage ? (
+                  <Text className="text-[10px] text-neutral-500 line-through">
+                    {formatPrice(servicePackage.originalPrice)}
+                  </Text>
+                ) : null}
+                <Text className="text-xl font-PlayfairB text-[#FFBE0B]">{formatPrice(totalPrice)}</Text>
+              </View>
             </View>
           </View>
 
-          <View className="mb-5">
+          <View
+            className="mb-5"
+            onLayout={(event) => {
+              if (packageId || startAtDate) {
+                bookingScrollRef.current?.scrollTo({
+                  y: Math.max(0, event.nativeEvent.layout.y - 8),
+                  animated: true,
+                });
+              }
+            }}
+          >
             <View className="mb-3 flex-row items-end justify-between">
               <View>
                 <Text className="text-[10px] font-bold uppercase tracking-[2px] text-[#FFBE0B]">Your visit</Text>

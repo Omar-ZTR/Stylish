@@ -40,6 +40,29 @@ export interface Service {
   imageUrl?: string;
 }
 
+export interface BarberWork {
+  id: string;
+  imageUrl: string;
+  mediaType?: "image" | "video";
+  mediaUrl?: string;
+  beforeImageUrl?: string;
+  createdAt: string;
+}
+
+export interface BarberPost extends BarberWork {
+  barberId: string;
+  barber: Barber;
+}
+
+export interface BarberReview {
+  id: string;
+  customerName: string;
+  customerImageUrl?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface Barber {
   id: string;
   ownerId?: string;
@@ -56,11 +79,30 @@ export interface Barber {
   pauseEndTime?: string;
   autoAcceptBookings?: boolean;
   services: Service[];
+  work?: BarberWork[];
+  reviews?: BarberReview[];
+}
+
+export interface ServicePackage {
+  id: string;
+  barberId: string;
+  title: string;
+  description: string;
+  discountPercent: number;
+  serviceIds: string[];
+  imageUrl: string;
+  barber: Barber;
+  services: Service[];
+  originalPrice: number;
+  finalPrice: number;
+  savings: number;
+  durationMinutes: number;
 }
 
 export interface Booking {
   id: string;
   barberId: string;
+  packageId?: string;
   serviceIds: string[];
   bookingDate: string;
   startTime: string;
@@ -118,6 +160,16 @@ export const api = {
     return request<{ barbers: Barber[] }>(`/api/barbers${query.toString() ? `?${query}` : ""}`);
   },
   getBarber: (id: string) => request<{ barber: Barber }>(`/api/barbers/${id}`),
+  getPosts: (params: { limit?: number; offset?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.offset !== undefined) query.set("offset", String(params.offset));
+    return request<{ posts: BarberPost[]; hasMore: boolean; nextOffset: number }>(
+      `/api/posts${query.toString() ? `?${query}` : ""}`,
+    );
+  },
+  getPackages: () => request<{ packages: ServicePackage[] }>("/api/packages"),
+  getPackage: (id: string) => request<{ servicePackage: ServicePackage }>(`/api/packages/${id}`),
   getBarberFollowerCount: (id: string) => request<{ followers: number }>(`/api/barbers/${id}/followers`),
   getMyBarber: () => request<{ barber: Barber }>('/api/barbers/mine'),
   updateMyBarber: (data: Pick<Barber, 'name' | 'location' | 'startTime' | 'endTime' | 'operatingDays' | 'pauseStartTime' | 'pauseEndTime' | 'autoAcceptBookings'>) =>
@@ -134,7 +186,7 @@ export const api = {
   getAvailability: (id: string, date: string) => request<{ date: string; isOpen: boolean; booked: { startTime: string; endTime: string }[]; openingHours: { start: string; end: string; pauseStart?: string; pauseEnd?: string } }>(`/api/barbers/${id}/availability?date=${encodeURIComponent(date)}`),
   getFavorites: () => request<{ barbers: Barber[] }>("/api/favorites"),
   toggleFavorite: (barberId: string) => request<{ saved: boolean }>(`/api/favorites/${barberId}`, { method: "POST" }),
-  createBooking: (data: { barberId: string; serviceIds: string[]; bookingDate: string; startTime: string }) =>
+  createBooking: (data: { barberId: string; packageId?: string; serviceIds: string[]; bookingDate: string; startTime: string }) =>
     request<{ booking: Booking }>("/api/bookings", { method: "POST", body: JSON.stringify(data) }),
   getBookings: () => request<{ bookings: Booking[] }>("/api/bookings"),
   cancelBooking: (id: string) => request<{ booking: Booking }>(`/api/bookings/${id}/cancel`, { method: "PATCH" }),

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { api, type Booking } from '@/src/lib/api';
 import { useAuth } from '@/src/auth/AuthContext';
 import BarberBookings from '@/src/components/BarberBookings';
@@ -8,6 +9,7 @@ import '../global.css';
 
 interface BookingSummary {
   id: string;
+  barberId: string;
   barber: string;
   services: string;
   date: string;
@@ -17,6 +19,7 @@ interface BookingSummary {
 }
 
 const CustomerBookingTab = ({ userId }: { userId?: string }) => {
+  const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barberNames, setBarberNames] = useState<Record<string, string>>({});
 
@@ -45,6 +48,7 @@ const CustomerBookingTab = ({ userId }: { userId?: string }) => {
   const bookingSummaries = useMemo<BookingSummary[]>(() => {
     return bookings.map((booking) => ({
       id: booking.id,
+      barberId: booking.barberId,
       barber: barberNames[booking.barberId] ?? 'Barber',
       services: booking.serviceIds.length > 0 ? `${booking.serviceIds.length} service${booking.serviceIds.length === 1 ? '' : 's'}` : 'Service',
       date: booking.bookingDate,
@@ -92,7 +96,14 @@ const CustomerBookingTab = ({ userId }: { userId?: string }) => {
             <MaterialIcons name="event-available" size={20} color="#FFD60A" />
             <Text className="text-[#FFD60A] font-bold ml-2">Next appointment</Text>
           </View>
-          <Text className="text-white font-semibold text-lg">{upcomingBooking.barber}</Text>
+          <TouchableOpacity
+            onPress={() => router.push(`/barber/${upcomingBooking.barberId}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${upcomingBooking.barber}'s profile`}
+            className="self-start"
+          >
+            <Text className="text-white font-semibold text-lg">{upcomingBooking.barber}</Text>
+          </TouchableOpacity>
           <Text className="text-neutral-300 mt-1">{upcomingBooking.services}</Text>
           <Text className="text-[#FFD60A] mt-2">
             {new Date(upcomingBooking.date).toLocaleDateString()} • {upcomingBooking.time}
@@ -113,7 +124,14 @@ const CustomerBookingTab = ({ userId }: { userId?: string }) => {
             <View key={booking.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
               <View className="flex-row justify-between items-start">
                 <View className="flex-1">
-                  <Text className="text-white font-bold text-lg">{booking.barber}</Text>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/barber/${booking.barberId}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${booking.barber}'s profile`}
+                    className="self-start"
+                  >
+                    <Text className="text-white font-bold text-lg">{booking.barber}</Text>
+                  </TouchableOpacity>
                   <Text className="text-neutral-400 mt-1">{booking.services}</Text>
                 </View>
                 <View

@@ -8,6 +8,7 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
+    Pressable,
     View,
 } from 'react-native'
 import { api, type Barber } from '@/src/lib/api'
@@ -65,15 +66,22 @@ const Favorites = () => {
 
   const renderItem = ({ item }: { item: Barber }) => (
     <View style={styles.card}>
-      <Image source={{ uri: item.logoUrl }} style={styles.image} />
-      <View style={styles.content}>
-        <Text numberOfLines={1} style={styles.title}>{item.name}</Text>
-        <Text numberOfLines={1} style={styles.subtitle}>{item.location}</Text>
-        <Text style={styles.price}>{item.rating.toFixed(1)} rating</Text>
-        <View style={[styles.typePill, styles.barberPill]}>
-          <Text style={styles.typeText}>Barber</Text>
+      <Pressable
+        onPress={() => router.push(`/barber/${item.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.name}'s profile`}
+        style={styles.profileLink}
+      >
+        <Image source={{ uri: item.logoUrl }} style={styles.image} />
+        <View style={styles.content}>
+          <Text numberOfLines={1} style={styles.title}>{item.name}</Text>
+          <Text numberOfLines={1} style={styles.subtitle}>{item.location}</Text>
+          <Text style={styles.price}>{item.rating.toFixed(1)} rating</Text>
+          <View style={[styles.typePill, styles.barberPill]}>
+            <Text style={styles.typeText}>Barber</Text>
+          </View>
         </View>
-      </View>
+      </Pressable>
       <TouchableOpacity style={styles.heart} onPress={() => removeItem(item.id)} accessibilityLabel="Remove saved">
         <Ionicons name="trash" size={20} color="#e53935" />
       </TouchableOpacity>
@@ -118,6 +126,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  profileLink: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   image: { width: 72, height: 72, borderRadius: 8, marginRight: 12 },
   content: { flex: 1 },
   title: { fontSize: 16, fontWeight: '600', color: '#111' },

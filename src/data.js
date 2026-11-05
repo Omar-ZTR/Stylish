@@ -165,53 +165,6 @@ export const stories = [
   },
 ];
 
-export const salesPacks = [
-  {
-    id: "1",
-    title: "Gold Groom Pack",
-    discount: "Save 25%",
-    image:
-     "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1200",
-    description: "Haircut + Beard Trim + Facial Mask",
-    price: "$40",
-  },
-  {
-    id: "2",
-    title: "Classic Shave Deal",
-    discount: "Save 15%",
-    image:
-     "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1200",
-    description: "Hot Towel Shave + Skin Care",
-    price: "$25",
-  },
-  {
-    id: "3",
-    title: "King’s Treatment",
-    discount: "Save 30%",
-    image:
-     "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1200",
-    description: "Full Haircut + Beard + Massage + Styling",
-    price: "$60",
-  },
-  {
-    id: "4",
-    title: "Fresh Fade Combo",
-    discount: "Save 20%",
-    image:
-      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1200",
-    description: "Fade + Beard Shape + Styling",
-    price: "$35",
-  },
-  {
-    id: "5",
-    title: "Student Pack",
-    discount: "Save 10%",
-    image:
-      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1200",
-    description: "Quick Cut + Light Beard Trim",
-    price: "$20",
-  },
-];
 export default function DataRoute() {
   return null;
 }

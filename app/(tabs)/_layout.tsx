@@ -43,7 +43,7 @@ const LayoutContent = () => {
        <View collapsable={false} style={{ flex: 1 }}>
        <Tabs
        screenOptions={({ route }) => ({
-         headerShown: true,
+         headerShown: route.name !== "index",
          header: () => {
            return (
           <LinearGradient
