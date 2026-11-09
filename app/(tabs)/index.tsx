@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   ImageBackground,
   Linking,
@@ -27,6 +26,53 @@ import "../global.css";
 
 const ACCENT = "#FFBE0B";
 const PAGE_SIZE = 8;
+
+type HomeFeedPost = BarberPost & {
+  caption?: string;
+  styleName?: string;
+  likes?: number;
+  isDemo?: boolean;
+};
+
+const DEMO_STYLE_POSTS: {
+  imageUrl: string;
+  beforeImageUrl?: string;
+  styleName: string;
+  caption: string;
+  likes: number;
+  minutesAgo: number;
+}[] = [
+  {
+    imageUrl: "https://picsum.photos/id/1005/600/720",
+    beforeImageUrl: "https://picsum.photos/id/1011/600/720",
+    styleName: "The Clean Fade",
+    caption: "Sharp lines, smooth finish. A fresh look for the week.",
+    likes: 128,
+    minutesAgo: 35,
+  },
+  {
+    imageUrl: "https://picsum.photos/id/1033/600/720",
+    styleName: "Classic Texture",
+    caption: "Natural texture with a tidy, easy-to-style shape.",
+    likes: 86,
+    minutesAgo: 145,
+  },
+  {
+    imageUrl: "https://picsum.photos/id/1040/600/720",
+    beforeImageUrl: "https://picsum.photos/id/1027/600/720",
+    styleName: "Beard Refresh",
+    caption: "A clean beard line-up paired with a neat taper.",
+    likes: 94,
+    minutesAgo: 320,
+  },
+  {
+    imageUrl: "https://picsum.photos/id/1052/600/720",
+    styleName: "Modern Crop",
+    caption: "Short, textured, and made to keep its shape.",
+    likes: 73,
+    minutesAgo: 560,
+  },
+];
 
 const formatPrice = (price: number) =>
   `${Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2)} TND`;
@@ -110,7 +156,7 @@ export default function Index() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const barberCardWidth = Math.min(width - 48, 350);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [packages, setPackages] = useState<ServicePackage[]>([]);
@@ -194,6 +240,25 @@ export default function Index() {
     () => [...new Set(barbers.map((barber) => barber.location.trim()).filter(Boolean))].sort(),
     [barbers],
   );
+  const displayPosts = useMemo<HomeFeedPost[]>(() => {
+    if (posts.length) return posts;
+    if (!barbers.length) return [];
+
+    const now = Date.now();
+    return DEMO_STYLE_POSTS.map((sample, index) => {
+      const barber = barbers[index % barbers.length];
+      const { minutesAgo, ...post } = sample;
+      return {
+        ...post,
+        id: `demo-post-${barber.id}-${index}`,
+        barberId: barber.id,
+        barber,
+        createdAt: new Date(now - minutesAgo * 60_000).toISOString(),
+        mediaType: "image" as const,
+        isDemo: true,
+      };
+    });
+  }, [barbers, posts]);
   const visibleBarbers = useMemo(() => {
     const filtered = location
       ? barbers.filter((barber) => barber.location.toLowerCase().includes(location.toLowerCase()))
@@ -220,15 +285,34 @@ export default function Index() {
       .sort((a, b) => b.providerCount - a.providerCount || a.service.name.localeCompare(b.service.name))
       .slice(0, 8);
   }, [visibleBarbers]);
-  const storytellers = useMemo(() => {
-    const seen = new Set<string>();
-    return posts.filter((post) => {
-      if (seen.has(post.barberId)) return false;
-      seen.add(post.barberId);
-      return true;
-    });
-  }, [posts]);
-  const trendingPosts = posts.slice(0, 4);
+  const feedInsertions = useMemo(() => {
+    const insertions = new Map<number, ("recommended" | "trending" | "nearby")[]>();
+    if (displayPosts.length < 2) return insertions;
+
+    let seed = [...displayPosts[0].id].reduce(
+      (value, character) => (value * 31 + character.charCodeAt(0)) >>> 0,
+      7,
+    );
+    const random = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0x1_0000_0000;
+    };
+    const sections: ("recommended" | "trending" | "nearby")[] = ["recommended", "trending", "nearby"];
+    const positions = Array.from({ length: displayPosts.length - 1 }, (_, index) => index + 1);
+    for (let index = positions.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [positions[index], positions[swapIndex]] = [positions[swapIndex], positions[index]];
+    }
+    for (let index = sections.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [sections[index], sections[swapIndex]] = [sections[swapIndex], sections[index]];
+    }
+    for (let index = 0; index < sections.length; index += 1) {
+      const position = positions[index % positions.length];
+      insertions.set(position, [...(insertions.get(position) ?? []), sections[index]]);
+    }
+    return insertions;
+  }, [displayPosts]);
   const greeting = greetingForHour(new Date().getHours());
   const firstName = user?.fullName.trim().split(/\s+/)[0] || "there";
 
@@ -368,155 +452,7 @@ export default function Index() {
             <Text className="ml-3 flex-1 text-sm text-neutral-400">Search barbers, services or offers</Text>
             <MaterialIcons name="tune" size={18} color="#A3A3A3" />
           </TouchableOpacity>
-
-          <View className="mb-7">
-            <SectionHeading eyebrow="FROM THE BARBER COMMUNITY" title="Latest Styles" />
-            {isLoading && !posts.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-                {[0, 1, 2, 3].map((item) => (
-                  <View key={item} className="mr-4 items-center">
-                    <View className="h-[66px] w-[66px] rounded-full border-2 border-[#FFBE0B]/40 bg-[#2A2312]" />
-                    <View className="mt-2 h-2 w-14 rounded-full bg-white/10" />
-                  </View>
-                ))}
-              </ScrollView>
-            ) : storytellers.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-                {storytellers.map((post) => (
-                  <TouchableOpacity
-                    key={post.barberId}
-                    onPress={() => setSelectedPost(post)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open latest style by ${post.barber.name}`}
-                    className="mr-4 w-[72px] items-center"
-                  >
-                    <View className="h-[66px] w-[66px] items-center justify-center rounded-full border-2 border-[#FFBE0B] p-[3px]">
-                      <Image source={{ uri: post.barber.logoUrl }} className="h-full w-full rounded-full" />
-                    </View>
-                    <Text className="mt-2 w-full text-center text-[10px] font-medium text-neutral-200" numberOfLines={1}>
-                      {post.barber.name}
-                    </Text>
-                    <Text className="mt-0.5 text-[9px] text-neutral-500">{formatPostTime(post.createdAt)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] px-4 py-4">
-                <Text className="text-sm font-semibold text-white">
-                  {postsError ? "Styles are unavailable right now" : "No new styles just yet"}
-                </Text>
-                <Text className="mt-1 text-xs leading-5 text-neutral-400">
-                  {postsError ?? "Barber posts will appear here as soon as they share their latest work."}
-                </Text>
-                {postsError ? (
-                  <TouchableOpacity onPress={() => void loadHome(true)} className="mt-3 self-start">
-                    <Text className="text-xs font-bold text-[#FFBE0B]">Try again</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
-          </View>
-
-          <View className="mb-8">
-            <SectionHeading
-              eyebrow="FRESH FROM THE CHAIR"
-              title="Latest posts"
-              action={hasMorePosts ? "Load more" : undefined}
-              onAction={hasMorePosts ? loadMorePosts : undefined}
-            />
-            {isLoading && !posts.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-                {[0, 1].map((item) => <LoadingCard key={item} width={250} />)}
-              </ScrollView>
-            ) : posts.length ? (
-              <>
-                <FlatList
-                  horizontal
-                  data={posts}
-                  keyExtractor={(post) => post.id}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 20 }}
-                  initialNumToRender={3}
-                  maxToRenderPerBatch={4}
-                  windowSize={3}
-                  renderItem={({ item: post }) => (
-                    <View
-                      key={post.id}
-                      className="mr-3 w-[250px] overflow-hidden rounded-3xl border border-white/10 bg-[#191A1A]"
-                    >
-                      <TouchableOpacity
-                        onPress={() => setSelectedPost(post)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Open latest post by ${post.barber.name}`}
-                      >
-                        <View className="relative">
-                          {post.beforeImageUrl ? (
-                            <View className="h-[165px] flex-row">
-                              <Image source={{ uri: post.beforeImageUrl }} className="h-full flex-1" resizeMode="cover" />
-                              <Image source={{ uri: post.imageUrl }} className="h-full flex-1" resizeMode="cover" />
-                            </View>
-                          ) : (
-                            <Image source={{ uri: post.imageUrl }} className="h-[165px] w-full" resizeMode="cover" />
-                          )}
-                          {post.mediaType === "video" ? (
-                            <View className="absolute inset-0 items-center justify-center">
-                              <MaterialIcons name="play-circle-filled" size={40} color="#FFFFFF" />
-                            </View>
-                          ) : null}
-                          {post.beforeImageUrl ? (
-                            <View className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1">
-                              <Text className="text-[8px] font-bold uppercase text-white">Transformation</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => router.push(`/barber/${post.barber.id}`)}
-                        className="flex-row items-center p-3"
-                        accessibilityRole="button"
-                        accessibilityLabel={`Visit ${post.barber.name}'s profile`}
-                      >
-                        <Image source={{ uri: post.barber.logoUrl }} className="h-9 w-9 rounded-full" />
-                        <View className="ml-2.5 min-w-0 flex-1">
-                          <Text className="text-xs font-bold text-white" numberOfLines={1}>{post.barber.name}</Text>
-                          <Text className="mt-1 text-[9px] text-neutral-500">
-                            {formatPostTime(post.createdAt)} · {post.barber.location}
-                          </Text>
-                        </View>
-                        <MaterialIcons name="arrow-forward" size={17} color={ACCENT} />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                />
-                <View className="mt-3 flex-row items-center justify-center">
-                  {postsError ? (
-                    <Text className="mr-3 text-[10px] text-neutral-400">{postsError}</Text>
-                  ) : null}
-                  {hasMorePosts ? (
-                    <TouchableOpacity
-                      onPress={() => void loadMorePosts()}
-                      disabled={isLoadingMore}
-                      className="flex-row items-center rounded-full border border-[#FFBE0B]/35 bg-[#2A2312] px-4 py-2"
-                    >
-                      {isLoadingMore ? <ActivityIndicator size="small" color={ACCENT} /> : null}
-                      <Text className="ml-1.5 text-[10px] font-bold text-[#FFBE0B]">
-                        {isLoadingMore ? "Loading" : "Load more posts"}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </>
-            ) : (
-              <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
-                <Text className="text-sm font-semibold text-white">No posts yet</Text>
-                <Text className="mt-1 text-xs leading-5 text-neutral-400">
-                  The latest barber photos and videos will appear here.
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
+{/* Offers for you */}
         <View className="mb-8">
           <SectionHeading
             eyebrow="A LITTLE SOMETHING EXTRA"
@@ -636,6 +572,304 @@ export default function Index() {
           )}
         </View>
 
+{/* Latest styles and posts */}
+          <View className="mb-8">
+            <SectionHeading
+              eyebrow="FROM THE BARBER COMMUNITY"
+              title="Latest styles & posts"
+              action={hasMorePosts ? "Load more" : undefined}
+              onAction={hasMorePosts ? loadMorePosts : undefined}
+            />
+            {isLoading && !posts.length ? (
+              <View className="mx-5">
+                <LoadingCard width={width - 40} />
+              </View>
+            ) : displayPosts.length ? (
+              <>
+                <View className="px-5">
+                  {displayPosts.map((post, index) => (
+                    <React.Fragment key={post.id}>
+                    <View
+                      className="mb-4 overflow-hidden rounded-3xl border border-white/10 bg-[#191A1A]"
+                    >
+                      <TouchableOpacity
+                        onPress={() => router.push(`/barber/${post.barber.id}`)}
+                        className="flex-row items-center p-3"
+                        accessibilityRole="button"
+                        accessibilityLabel={`Visit ${post.barber.name}'s profile`}
+                      >
+                        <Image source={{ uri: post.barber.logoUrl }} className="h-10 w-10 rounded-full border border-[#FFBE0B]/50" />
+                        <View className="ml-2.5 min-w-0 flex-1">
+                          <Text className="text-xs font-bold text-white" numberOfLines={1}>{post.barber.name}</Text>
+                          <Text className="mt-1 text-[9px] text-neutral-500" numberOfLines={1}>
+                            {post.barber.location} · {formatPostTime(post.createdAt)}
+                          </Text>
+                        </View>
+                        <MaterialIcons name="more-horiz" size={22} color="#A3A3A3" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setSelectedPost(post)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open latest post by ${post.barber.name}`}
+                      >
+                        <View className="relative">
+                          {post.beforeImageUrl ? (
+                            <View className="h-[280px] flex-row">
+                              <Image source={{ uri: post.beforeImageUrl }} className="h-full flex-1" resizeMode="cover" />
+                              <Image source={{ uri: post.imageUrl }} className="h-full flex-1" resizeMode="cover" />
+                            </View>
+                          ) : (
+                            <Image source={{ uri: post.imageUrl }} className="h-[280px] w-full" resizeMode="cover" />
+                          )}
+                          {post.mediaType === "video" ? (
+                            <View className="absolute inset-0 items-center justify-center">
+                              <MaterialIcons name="play-circle-filled" size={40} color="#FFFFFF" />
+                            </View>
+                          ) : null}
+                          {post.isDemo ? (
+                            <View className="absolute right-2 top-2 rounded-full border border-white/20 bg-black/65 px-2.5 py-1">
+                              <Text className="text-[8px] font-bold uppercase tracking-[1px] text-[#FFBE0B]">Demo</Text>
+                            </View>
+                          ) : null}
+                          {post.beforeImageUrl ? (
+                            <View className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1">
+                              <Text className="text-[8px] font-bold uppercase text-white">Transformation</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                      <View className="flex-row items-center px-3 pt-3">
+                        <MaterialIcons name="favorite-border" size={19} color={ACCENT} />
+                        {post.likes !== undefined ? (
+                          <Text className="ml-1.5 text-[10px] font-semibold text-neutral-300">{post.likes} likes</Text>
+                        ) : (
+                          <Text className="ml-1.5 text-[10px] text-neutral-500">Fresh style inspiration</Text>
+                        )}
+                        <View className="flex-1" />
+                        <MaterialIcons name="bookmark-border" size={19} color="#A3A3A3" />
+                      </View>
+                      {post.styleName || post.caption ? (
+                        <View className="px-3 pt-2">
+                          {post.styleName ? (
+                            <Text className="text-xs font-bold text-white" numberOfLines={1}>{post.styleName}</Text>
+                          ) : null}
+                          {post.caption ? (
+                            <Text className="mt-1 text-[10px] leading-4 text-neutral-400" numberOfLines={2}>{post.caption}</Text>
+                          ) : null}
+                        </View>
+                      ) : (
+                        <Text className="px-3 pb-3 pt-2 text-xs font-bold text-white">
+                          {post.beforeImageUrl ? "Before & after transformation" : "Latest work"}
+                        </Text>
+                      )}
+                    </View>
+                    {feedInsertions.get(index + 1)?.map((section) => (
+                      <View key={`${post.id}-${section}`} className="mb-7">
+                        {section === "recommended" ? (
+                          <View>
+                            <SectionHeading
+                              eyebrow="HAND-PICKED FOR YOU"
+                              title="Recommended barbers"
+                              action="View All"
+                              onAction={() => router.push("/(tabs)/search")}
+                            />
+                            {isLoading && !barbers.length ? (
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                                {[0, 1, 2].map((item) => <LoadingCard key={item} width={barberCardWidth} />)}
+                              </ScrollView>
+                            ) : barberError && !barbers.length ? (
+                              <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-4">
+                                <Text className="text-xs text-neutral-300">{barberError}</Text>
+                                <TouchableOpacity onPress={() => void loadHome(true)} className="mt-3 self-start">
+                                  <Text className="text-xs font-bold text-[#FFBE0B]">Try again</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ) : recommendedBarbers.length ? (
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                                {recommendedBarbers.map((barber) => (
+                                  <BarberProfileCard
+                                    key={`recommended-${barber.id}`}
+                                    barber={barber}
+                                    onPress={() => router.push(`/barber/${barber.id}`)}
+                                    style={{ width: barberCardWidth, marginRight: 12 }}
+                                    height={280}
+                                    showStartingPrice
+                                  />
+                                ))}
+                              </ScrollView>
+                            ) : (
+                              <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-4">
+                                <Text className="text-xs text-neutral-300">
+                                  {location ? `No barbers found in ${location}.` : "No barbers are available right now."}
+                                </Text>
+                                {location ? (
+                                  <TouchableOpacity onPress={() => setLocation(null)} className="mt-3 self-start">
+                                    <Text className="text-xs font-bold text-[#FFBE0B]">Show all areas</Text>
+                                  </TouchableOpacity>
+                                ) : null}
+                              </View>
+                            )}
+                          </View>
+                        ) : !isLoading && !barberError ? (
+                          <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-4">
+                            <Text className="text-xs text-neutral-300">No nearby barbers are available for this area.</Text>
+                          </View>
+                        ) : null}
+                        {section === "trending" ? (
+                          <View>
+                            <SectionHeading
+                              eyebrow="FRESH INSPIRATION"
+                              title="Trending haircuts"
+                              action="Latest Styles"
+                              onAction={() => setSelectedPost(displayPosts[0] ?? null)}
+                            />
+                            <View className="flex-row flex-wrap justify-between px-5">
+                              {displayPosts.slice(0, 4).map((trendingPost) => (
+                                <Pressable
+                                  key={`trend-${trendingPost.id}`}
+                                  onPress={() => setSelectedPost(trendingPost)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Open haircut post by ${trendingPost.barber.name}`}
+                                  className="mb-3 w-[48.5%] overflow-hidden rounded-2xl border border-white/10 bg-[#191A1A]"
+                                >
+                                  <View className="relative">
+                                    {trendingPost.beforeImageUrl ? (
+                                      <View className="h-[150px] flex-row">
+                                        <Image source={{ uri: trendingPost.beforeImageUrl }} className="h-full flex-1" resizeMode="cover" />
+                                        <Image source={{ uri: trendingPost.imageUrl }} className="h-full flex-1" resizeMode="cover" />
+                                      </View>
+                                    ) : (
+                                      <Image source={{ uri: trendingPost.imageUrl }} className="h-[150px] w-full" resizeMode="cover" />
+                                    )}
+                                    {trendingPost.beforeImageUrl ? (
+                                      <View className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1">
+                                        <Text className="text-[8px] font-bold uppercase text-white">Before & after</Text>
+                                      </View>
+                                    ) : null}
+                                    {trendingPost.mediaType === "video" ? (
+                                      <View className="absolute inset-0 items-center justify-center">
+                                        <MaterialIcons name="play-circle-filled" size={42} color="#FFFFFF" />
+                                      </View>
+                                    ) : null}
+                                    {trendingPost.isDemo ? (
+                                      <View className="absolute right-2 top-2 rounded-full border border-white/20 bg-black/65 px-2.5 py-1">
+                                        <Text className="text-[8px] font-bold uppercase tracking-[1px] text-[#FFBE0B]">Demo</Text>
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                  {trendingPost.styleName || trendingPost.caption ? (
+                                    <View className="px-2.5 pt-2.5">
+                                      {trendingPost.styleName ? (
+                                        <Text className="text-[11px] font-bold text-white" numberOfLines={1}>{trendingPost.styleName}</Text>
+                                      ) : null}
+                                      {trendingPost.caption ? (
+                                        <Text className="mt-1 text-[9px] leading-4 text-neutral-400" numberOfLines={2}>{trendingPost.caption}</Text>
+                                      ) : null}
+                                    </View>
+                                  ) : null}
+                                  <TouchableOpacity
+                                    onPress={() => router.push(`/barber/${trendingPost.barber.id}`)}
+                                    className="flex-row items-center p-2.5"
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`View ${trendingPost.barber.name}'s profile`}
+                                  >
+                                    <Image source={{ uri: trendingPost.barber.logoUrl }} className="h-7 w-7 rounded-full" />
+                                    <View className="ml-2 min-w-0 flex-1">
+                                      <Text className="text-[10px] font-semibold text-white" numberOfLines={1}>
+                                        {trendingPost.barber.name}
+                                      </Text>
+                                      <Text className="mt-0.5 text-[9px] text-neutral-500">
+                                        {formatPostTime(trendingPost.createdAt)}
+                                      </Text>
+                                    </View>
+                                  </TouchableOpacity>
+                                </Pressable>
+                              ))}
+                            </View>
+                          </View>
+                        ) : null}
+                        {section === "nearby" ? (
+                          <View>
+                            <SectionHeading
+                              eyebrow={location ?? "BASED ON BARBER LOCATIONS"}
+                              title="Nearby barbers"
+                              action="See All"
+                              onAction={() => router.push("/(tabs)/search")}
+                            />
+                            {nearbyBarbers.length ? (
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                                {nearbyBarbers.map((barber) => {
+                                  const isOpen = isBarberOpenNow(barber);
+                                  return (
+                                    <TouchableOpacity
+                                      key={`nearby-${barber.id}`}
+                                      onPress={() => router.push(`/barber/${barber.id}`)}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={`View ${barber.name}, ${barber.distanceKm.toFixed(1)} kilometers away, rated ${barber.rating.toFixed(1)}`}
+                                      activeOpacity={0.84}
+                                      className="mr-3 w-[265px] flex-row items-center rounded-3xl border border-white/10 bg-[#191A1A] p-3"
+                                    >
+                                      <Image source={{ uri: barber.logoUrl }} className="h-[66px] w-[66px] rounded-2xl" />
+                                      <View className="ml-3 min-w-0 flex-1">
+                                        <Text className="text-sm font-bold text-white" numberOfLines={1}>{barber.name}</Text>
+                                        <Text className="mt-1 text-[10px] text-neutral-400" numberOfLines={1}>{barber.location}</Text>
+                                        <View className="mt-2 flex-row items-center justify-between">
+                                          <View className="flex-row items-center">
+                                            <MaterialIcons name="star" size={13} color={ACCENT} />
+                                            <Text className="ml-1 text-[10px] font-bold text-white">{barber.rating.toFixed(1)}</Text>
+                                            <Text className="ml-2 text-[9px] text-neutral-500">{barber.distanceKm.toFixed(1)} km</Text>
+                                          </View>
+                                          <View className="flex-row items-center">
+                                            <View className={`mr-1 h-1.5 w-1.5 rounded-full ${isOpen ? "bg-emerald-400" : "bg-neutral-500"}`} />
+                                            <Text className={`text-[9px] font-semibold ${isOpen ? "text-emerald-300" : "text-neutral-500"}`}>
+                                              {isOpen ? "Open now" : "Closed"}
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </ScrollView>
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </View>
+                    ))}
+                    </React.Fragment>
+                  ))}
+                </View>
+                <View className="mt-3 flex-row items-center justify-center">
+                  {postsError ? (
+                    <Text className="mr-3 text-[10px] text-neutral-400">{postsError}</Text>
+                  ) : null}
+                  {hasMorePosts ? (
+                    <TouchableOpacity
+                      onPress={() => void loadMorePosts()}
+                      disabled={isLoadingMore}
+                      className="flex-row items-center rounded-full border border-[#FFBE0B]/35 bg-[#2A2312] px-4 py-2"
+                    >
+                      {isLoadingMore ? <ActivityIndicator size="small" color={ACCENT} /> : null}
+                      <Text className="ml-1.5 text-[10px] font-bold text-[#FFBE0B]">
+                        {isLoadingMore ? "Loading" : "Load more posts"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
+                <Text className="text-sm font-semibold text-white">No posts yet</Text>
+                <Text className="mt-1 text-xs leading-5 text-neutral-400">
+                  The latest barber photos and videos will appear here.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+
+{/* Popular services */}
         <View className="mb-8">
           <SectionHeading
             eyebrow="THE BARBER MENU"
@@ -707,160 +941,6 @@ export default function Index() {
           )}
         </View>
 
-        <View className="mb-8">
-          <SectionHeading
-            eyebrow="HAND-PICKED FOR YOU"
-            title="Recommended barbers"
-            action="View All"
-            onAction={() => router.push("/(tabs)/search")}
-          />
-          {isLoading && !barbers.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-              {[0, 1, 2].map((item) => <LoadingCard key={item} width={barberCardWidth} />)}
-            </ScrollView>
-          ) : barberError && !barbers.length ? (
-            <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
-              <Text className="text-sm text-neutral-300">{barberError}</Text>
-              <TouchableOpacity onPress={() => void loadHome(true)} className="mt-3 self-start">
-                <Text className="text-xs font-bold text-[#FFBE0B]">Try again</Text>
-              </TouchableOpacity>
-            </View>
-          ) : recommendedBarbers.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-              {recommendedBarbers.map((barber) => (
-                <BarberProfileCard
-                  key={`recommended-${barber.id}`}
-                  barber={barber}
-                  onPress={() => router.push(`/barber/${barber.id}`)}
-                  style={{ width: barberCardWidth, marginRight: 12 }}
-                  height={280}
-                  showStartingPrice
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
-              <Text className="text-sm text-neutral-300">
-                {location ? `No barbers found in ${location}.` : "No barbers are available right now."}
-              </Text>
-              {location ? (
-                <TouchableOpacity onPress={() => setLocation(null)} className="mt-3 self-start">
-                  <Text className="text-xs font-bold text-[#FFBE0B]">Show all areas</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          )}
-        </View>
-
-        <View className="mb-8">
-          <SectionHeading eyebrow="FRESH INSPIRATION" title="Trending haircuts" action="Latest Styles" onAction={() => {
-            if (posts.length) setSelectedPost(posts[0]);
-          }} />
-          {trendingPosts.length ? (
-            <View className="flex-row flex-wrap justify-between px-5">
-              {trendingPosts.map((post) => (
-                <Pressable
-                  key={`trend-${post.id}`}
-                  onPress={() => setSelectedPost(post)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open haircut post by ${post.barber.name}`}
-                  className="mb-3 w-[48.5%] overflow-hidden rounded-2xl border border-white/10 bg-[#191A1A]"
-                >
-                  <View className="relative">
-                    {post.beforeImageUrl ? (
-                      <View className="h-[150px] flex-row">
-                        <Image source={{ uri: post.beforeImageUrl }} className="h-full flex-1" resizeMode="cover" />
-                        <Image source={{ uri: post.imageUrl }} className="h-full flex-1" resizeMode="cover" />
-                      </View>
-                    ) : (
-                      <Image source={{ uri: post.imageUrl }} className="h-[150px] w-full" resizeMode="cover" />
-                    )}
-                    {post.beforeImageUrl ? (
-                      <View className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-1">
-                        <Text className="text-[8px] font-bold uppercase text-white">Before & after</Text>
-                      </View>
-                    ) : null}
-                    {post.mediaType === "video" ? (
-                      <View className="absolute inset-0 items-center justify-center">
-                        <MaterialIcons name="play-circle-filled" size={42} color="#FFFFFF" />
-                      </View>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/barber/${post.barber.id}`)}
-                    className="flex-row items-center p-2.5"
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${post.barber.name}'s profile`}
-                  >
-                    <Image source={{ uri: post.barber.logoUrl }} className="h-7 w-7 rounded-full" />
-                    <View className="ml-2 min-w-0 flex-1">
-                      <Text className="text-[10px] font-semibold text-white" numberOfLines={1}>
-                        {post.barber.name}
-                      </Text>
-                      <Text className="mt-0.5 text-[9px] text-neutral-500">{formatPostTime(post.createdAt)}</Text>
-                    </View>
-                  </TouchableOpacity>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
-              <Text className="text-sm font-semibold text-white">New looks are on the way</Text>
-              <Text className="mt-1 text-xs leading-5 text-neutral-400">
-                Published haircut photos and transformations will be featured here.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View className="mb-3">
-          <SectionHeading
-            eyebrow={location ?? "BASED ON BARBER LOCATIONS"}
-            title="Nearby barbers"
-            action="See All"
-            onAction={() => router.push("/(tabs)/search")}
-          />
-          {nearbyBarbers.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-              {nearbyBarbers.map((barber) => {
-                const isOpen = isBarberOpenNow(barber);
-                return (
-                  <TouchableOpacity
-                    key={`nearby-${barber.id}`}
-                    onPress={() => router.push(`/barber/${barber.id}`)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`View ${barber.name}, ${barber.distanceKm.toFixed(1)} kilometers away, rated ${barber.rating.toFixed(1)}`}
-                    activeOpacity={0.84}
-                    className="mr-3 w-[265px] flex-row items-center rounded-3xl border border-white/10 bg-[#191A1A] p-3"
-                  >
-                    <Image source={{ uri: barber.logoUrl }} className="h-[66px] w-[66px] rounded-2xl" />
-                    <View className="ml-3 min-w-0 flex-1">
-                      <Text className="text-sm font-bold text-white" numberOfLines={1}>{barber.name}</Text>
-                      <Text className="mt-1 text-[10px] text-neutral-400" numberOfLines={1}>{barber.location}</Text>
-                      <View className="mt-2 flex-row items-center justify-between">
-                        <View className="flex-row items-center">
-                          <MaterialIcons name="star" size={13} color={ACCENT} />
-                          <Text className="ml-1 text-[10px] font-bold text-white">{barber.rating.toFixed(1)}</Text>
-                          <Text className="ml-2 text-[9px] text-neutral-500">{barber.distanceKm.toFixed(1)} km</Text>
-                        </View>
-                        <View className="flex-row items-center">
-                          <View className={`mr-1 h-1.5 w-1.5 rounded-full ${isOpen ? "bg-emerald-400" : "bg-neutral-500"}`} />
-                          <Text className={`text-[9px] font-semibold ${isOpen ? "text-emerald-300" : "text-neutral-500"}`}>
-                            {isOpen ? "Open now" : "Closed"}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          ) : !isLoading && !barberError ? (
-            <View className="mx-5 rounded-2xl border border-white/10 bg-[#191A1A] p-5">
-              <Text className="text-sm text-neutral-300">No nearby barbers are available for this area.</Text>
-            </View>
-          ) : null}
-        </View>
       </ScrollView>
 
       <Modal
@@ -876,7 +956,7 @@ export default function Index() {
           <Pressable
             onPress={(event) => event.stopPropagation()}
             className="rounded-t-[30px] border-t border-[#FFBE0B]/25 bg-[#151515] px-5 pb-8 pt-5"
-            style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+            style={{ maxHeight: height * 0.85, paddingBottom: Math.max(insets.bottom, 24) }}
           >
             <View className="mb-5 flex-row items-center justify-between">
               <View>
@@ -902,26 +982,32 @@ export default function Index() {
               <Text className="ml-3 flex-1 text-sm font-semibold text-white">All areas</Text>
               {!location ? <MaterialIcons name="check" size={18} color={ACCENT} /> : null}
             </TouchableOpacity>
-            {locationOptions.map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => {
-                  setLocation(option);
-                  setLocationPickerVisible(false);
-                }}
-                className="mb-2 flex-row items-center rounded-2xl border border-white/10 bg-[#1D1D1D] p-4"
-              >
-                <MaterialIcons name="place" size={19} color={ACCENT} />
-                <Text className="ml-3 flex-1 text-sm font-semibold text-white" numberOfLines={1}>{option}</Text>
-                {location === option ? <MaterialIcons name="check" size={18} color={ACCENT} /> : null}
-              </TouchableOpacity>
-            ))}
-            {!locationOptions.length && isLoading ? (
-              <View className="items-center py-5">
-                <ActivityIndicator color={ACCENT} />
-                <Text className="mt-2 text-xs text-neutral-400">Loading available areas…</Text>
-              </View>
-            ) : null}
+            <ScrollView
+              className="shrink"
+              showsVerticalScrollIndicator
+              keyboardShouldPersistTaps="handled"
+            >
+              {locationOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => {
+                    setLocation(option);
+                    setLocationPickerVisible(false);
+                  }}
+                  className="mb-2 flex-row items-center rounded-2xl border border-white/10 bg-[#1D1D1D] p-4"
+                >
+                  <MaterialIcons name="place" size={19} color={ACCENT} />
+                  <Text className="ml-3 flex-1 text-sm font-semibold text-white" numberOfLines={1}>{option}</Text>
+                  {location === option ? <MaterialIcons name="check" size={18} color={ACCENT} /> : null}
+                </TouchableOpacity>
+              ))}
+              {!locationOptions.length && isLoading ? (
+                <View className="items-center py-5">
+                  <ActivityIndicator color={ACCENT} />
+                  <Text className="mt-2 text-xs text-neutral-400">Loading available areas…</Text>
+                </View>
+              ) : null}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
